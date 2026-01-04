@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>WAS-110-Monitor</Name>
+  <Repository>ghcr.io/alanstrok/was-110-monitor:latest</Repository>
+  <Registry>ghcr.io</Registry>
+  <Branch>
+    <Tag>latest</Tag>
+    <TagDescription>Latest stable release</TagDescription>
+  </Branch>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/alanstrok/WAS-110-Monitor/issues</Support>
+  <Project>https://github.com/alanstrok/WAS-110-Monitor</Project>
+  <Overview>
+    Real-time monitoring dashboard for WAS-110 SFP+ ONT modules.
+
+    Features:
+    - Temperature monitoring (CPU and Optical)
+    - Optical power metrics (TX/RX, voltage, bias)
+    - Historical graphs up to 72 hours
+    - Configurable alerts with notifications
+    - Email, Discord, Webhook, Ntfy support
+    - Dark/Light theme
+  </Overview>
+  <Category>Network:Management Tools:</Category>
+  <WebUI>http://[IP]:[PORT:5050]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/alanstrok/WAS-110-Monitor/main/unraid/was-110-monitor.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/alanstrok/WAS-110-Monitor/main/unraid/icon.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <DateInstalled></DateInstalled>
+  <Description>Real-time monitoring dashboard for WAS-110 SFP+ ONT modules with alerts and notifications.</Description>
+
+  <!-- Ports -->
+  <Config Name="WebUI Port" Target="5050" Default="5050" Mode="tcp" Description="Web interface port" Type="Port" Display="always" Required="true" Mask="false">5050</Config>
+
+  <!-- Volumes -->
+  <Config Name="Data Storage" Target="/data" Default="/mnt/user/appdata/was-110-monitor" Mode="rw" Description="Persistent data storage for history" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/was-110-monitor</Config>
+
+  <!-- WAS-110 Connection -->
+  <Config Name="SFP Host" Target="SFP_HOST" Default="192.168.11.1" Mode="" Description="WAS-110 IP address" Type="Variable" Display="always" Required="true" Mask="false">192.168.11.1</Config>
+  <Config Name="SFP User" Target="SFP_USER" Default="root" Mode="" Description="SSH username" Type="Variable" Display="always" Required="true" Mask="false">root</Config>
+  <Config Name="SFP Password" Target="SFP_ROOT_PASSWORD" Default="" Mode="" Description="SSH password for WAS-110" Type="Variable" Display="always" Required="true" Mask="true"></Config>
+
+  <!-- Data Collection -->
+  <Config Name="Fetch Interval" Target="FETCH_INTERVAL_SECONDS" Default="60" Mode="" Description="Data collection interval in seconds" Type="Variable" Display="advanced" Required="false" Mask="false">60</Config>
+  <Config Name="History Hours" Target="HISTORY_HOURS" Default="72" Mode="" Description="Hours of history to retain" Type="Variable" Display="advanced" Required="false" Mask="false">72</Config>
+
+  <!-- Temperature Thresholds -->
+  <Config Name="CPU Temp Warning" Target="TEMP_WARNING" Default="65" Mode="" Description="CPU temperature warning threshold (°C)" Type="Variable" Display="advanced" Required="false" Mask="false">65</Config>
+  <Config Name="CPU Temp Critical" Target="TEMP_CRITICAL" Default="75" Mode="" Description="CPU temperature critical threshold (°C)" Type="Variable" Display="advanced" Required="false" Mask="false">75</Config>
+  <Config Name="Optical Temp Warning" Target="OPTICAL_TEMP_WARNING" Default="55" Mode="" Description="Optical temperature warning threshold (°C)" Type="Variable" Display="advanced" Required="false" Mask="false">55</Config>
+  <Config Name="Optical Temp Critical" Target="OPTICAL_TEMP_CRITICAL" Default="65" Mode="" Description="Optical temperature critical threshold (°C)" Type="Variable" Display="advanced" Required="false" Mask="false">65</Config>
+
+  <!-- Power Thresholds -->
+  <Config Name="RX Power Warning" Target="RX_POWER_WARNING" Default="-25" Mode="" Description="RX power warning threshold (dBm)" Type="Variable" Display="advanced" Required="false" Mask="false">-25</Config>
+  <Config Name="RX Power Critical" Target="RX_POWER_CRITICAL" Default="-28" Mode="" Description="RX power critical threshold (dBm)" Type="Variable" Display="advanced" Required="false" Mask="false">-28</Config>
+
+  <!-- Notifications -->
+  <Config Name="Enable Notifications" Target="NOTIFICATIONS_ENABLED" Default="false" Mode="" Description="Enable alert notifications" Type="Variable" Display="always" Required="false" Mask="false">false</Config>
+
+  <!-- Discord -->
+  <Config Name="Discord Webhook URL" Target="DISCORD_WEBHOOK_URL" Default="" Mode="" Description="Discord webhook URL for notifications" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+
+  <!-- Ntfy -->
+  <Config Name="Ntfy URL" Target="NTFY_URL" Default="https://ntfy.sh" Mode="" Description="Ntfy server URL" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Ntfy Topic" Target="NTFY_TOPIC" Default="" Mode="" Description="Ntfy topic name" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+
+  <!-- Email -->
+  <Config Name="SMTP Host" Target="SMTP_HOST" Default="" Mode="" Description="SMTP server hostname" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Port" Target="SMTP_PORT" Default="587" Mode="" Description="SMTP server port" Type="Variable" Display="advanced" Required="false" Mask="false">587</Config>
+  <Config Name="SMTP User" Target="SMTP_USER" Default="" Mode="" Description="SMTP username" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Password" Target="SMTP_PASSWORD" Default="" Mode="" Description="SMTP password" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Email From" Target="SMTP_FROM" Default="" Mode="" Description="Sender email address" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Email To" Target="SMTP_TO" Default="" Mode="" Description="Recipient email address" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+</Container>
