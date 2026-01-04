@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAS-110 Monitor</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1 class="logo">WAS-110 Monitor</h1>
+            <div id="connection-status" class="connection-status disconnected">
+                <span class="status-dot"></span>
+                Connecting...
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle" class="theme-toggle" title="Toggle theme">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+            </button>
+            <button id="refresh-btn" class="refresh-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+                Refresh
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- System Info Bar -->
+        <div class="system-info">
+            <div class="info-item">
+                <span class="info-label">Uptime:</span>
+                <span class="info-value" id="info-uptime">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Firmware:</span>
+                <span class="info-value" id="info-firmware">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">PON Mode:</span>
+                <span class="info-value" id="info-pon">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">ONU State:</span>
+                <span class="info-value" id="info-onu-state">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Last Update:</span>
+                <span class="info-value" id="info-last-update">--</span>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <!-- CPU Temp 0 -->
+            <div class="stat-card" id="stat-temp1">
+                <div class="stat-header">
+                    <span class="stat-title">CPU 0 Temp</span>
+                    <div class="stat-icon temp">🌡️</div>
+                </div>
+                <div class="stat-value" id="value-temp1">--<span class="unit">°C</span></div>
+            </div>
+
+            <!-- CPU Temp 1 -->
+            <div class="stat-card" id="stat-temp2">
+                <div class="stat-header">
+                    <span class="stat-title">CPU 1 Temp</span>
+                    <div class="stat-icon temp">🌡️</div>
+                </div>
+                <div class="stat-value" id="value-temp2">--<span class="unit">°C</span></div>
+            </div>
+
+            <!-- Optical Temp -->
+            <div class="stat-card" id="stat-optical-temp">
+                <div class="stat-header">
+                    <span class="stat-title">Optical Temp</span>
+                    <div class="stat-icon optical">💎</div>
+                </div>
+                <div class="stat-value" id="value-optical-temp">--<span class="unit">°C</span></div>
+            </div>
+
+            <!-- Supply Voltage -->
+            <div class="stat-card" id="stat-voltage">
+                <div class="stat-header">
+                    <span class="stat-title">Supply Voltage</span>
+                    <div class="stat-icon voltage">⚡</div>
+                </div>
+                <div class="stat-value" id="value-voltage">--<span class="unit">V</span></div>
+            </div>
+
+            <!-- Bias Current -->
+            <div class="stat-card" id="stat-bias-current">
+                <div class="stat-header">
+                    <span class="stat-title">Bias Current</span>
+                    <div class="stat-icon bias">🔌</div>
+                </div>
+                <div class="stat-value" id="value-bias-current">--<span class="unit">mA</span></div>
+            </div>
+
+            <!-- TX Power -->
+            <div class="stat-card" id="stat-tx-power">
+                <div class="stat-header">
+                    <span class="stat-title">TX Power</span>
+                    <div class="stat-icon power">📤</div>
+                </div>
+                <div class="stat-value" id="value-tx-power">--<span class="unit">dBm</span></div>
+            </div>
+
+            <!-- RX Power -->
+            <div class="stat-card" id="stat-rx-power">
+                <div class="stat-header">
+                    <span class="stat-title">RX Power</span>
+                    <div class="stat-icon power">📥</div>
+                </div>
+                <div class="stat-value" id="value-rx-power">--<span class="unit">dBm</span></div>
+            </div>
+
+            <!-- Next Refresh -->
+            <div class="stat-card" id="stat-refresh">
+                <div class="stat-header">
+                    <span class="stat-title">Next Refresh</span>
+                    <div class="stat-icon timer">⏱️</div>
+                </div>
+                <div class="stat-value" id="next-refresh">--</div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <section class="charts-section">
+            <div class="section-header">
+                <h2 class="section-title">📊 Historical Data</h2>
+                <div class="time-range-selector">
+                    <button class="time-btn" data-hours="1">1h</button>
+                    <button class="time-btn active" data-hours="3">3h</button>
+                    <button class="time-btn" data-hours="6">6h</button>
+                    <button class="time-btn" data-hours="12">12h</button>
+                    <button class="time-btn" data-hours="24">24h</button>
+                    <button class="time-btn" data-hours="72">3d</button>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <!-- Temperature Chart -->
+                <div class="chart-card">
+                    <h3 class="chart-title">🌡️ Temperatures</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-temperature"></canvas>
+                    </div>
+                </div>
+
+                <!-- Voltage Chart -->
+                <div class="chart-card">
+                    <h3 class="chart-title">⚡ Supply Voltage</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-voltage"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bias Current Chart -->
+                <div class="chart-card">
+                    <h3 class="chart-title">🔌 Bias Current</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-bias"></canvas>
+                    </div>
+                </div>
+
+                <!-- Optical Power Chart -->
+                <div class="chart-card">
+                    <h3 class="chart-title">📡 Optical Power</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-power"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alerts Section -->
+        <section class="alerts-section">
+            <div class="section-header">
+                <h2 class="section-title">🔔 Recent Alerts</h2>
+            </div>
+            <div class="alerts-list" id="alerts-list">
+                <div class="no-alerts">No recent alerts</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>WAS-110 SFP+ ONT Monitor • Real-time monitoring & alerts</p>
+    </footer>
+
+    <!-- App Script -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

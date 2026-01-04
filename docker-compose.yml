@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  was110-monitor:
+    build: .
+    container_name: was110-monitor
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./data:/data
+    environment:
+      # WAS-110 Connection (required)
+      - SFP_HOST=${SFP_HOST:-192.168.11.1}
+      - SFP_USER=${SFP_USER:-root}
+      - SFP_ROOT_PASSWORD=${SFP_ROOT_PASSWORD}
+
+      # Data Collection
+      - FETCH_INTERVAL_SECONDS=${FETCH_INTERVAL_SECONDS:-60}
+      - HISTORY_HOURS=${HISTORY_HOURS:-72}
+
+      # Alert Thresholds
+      - TEMP_WARNING=${TEMP_WARNING:-65}
+      - TEMP_CRITICAL=${TEMP_CRITICAL:-75}
+      - OPTICAL_TEMP_WARNING=${OPTICAL_TEMP_WARNING:-55}
+      - OPTICAL_TEMP_CRITICAL=${OPTICAL_TEMP_CRITICAL:-65}
+      - RX_POWER_WARNING=${RX_POWER_WARNING:--25}
+      - RX_POWER_CRITICAL=${RX_POWER_CRITICAL:--28}
+      - TX_POWER_WARNING=${TX_POWER_WARNING:--1}
+      - TX_POWER_CRITICAL=${TX_POWER_CRITICAL:--3}
+
+      # Notifications
+      - NOTIFICATIONS_ENABLED=${NOTIFICATIONS_ENABLED:-false}
+
+      # Email (optional)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_TO=${SMTP_TO:-}
+      - SMTP_TLS=${SMTP_TLS:-true}
+
+      # Webhook (optional)
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - WEBHOOK_ENABLED=${WEBHOOK_ENABLED:-false}
+
+      # Discord (optional)
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+
+      # Ntfy (optional)
+      - NTFY_URL=${NTFY_URL:-}
+      - NTFY_TOPIC=${NTFY_TOPIC:-}
+
+      # Debug
+      - DEBUG=${DEBUG:-false}
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
