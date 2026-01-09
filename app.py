@@ -7,7 +7,6 @@ import re
 import json
 import logging
 import threading
-import time
 from datetime import datetime, timedelta
 from collections import deque
 from typing import Dict, Optional, Any
@@ -72,6 +71,9 @@ connection_stats = {
     'uptime_start': datetime.now().isoformat()
 }
 
+# Store raw command outputs for debugging
+debug_outputs = {}
+
 # SSH client management
 ssh_client: Optional[paramiko.SSHClient] = None
 ssh_lock = threading.Lock()
@@ -84,20 +86,17 @@ def get_ssh_client() -> Optional[paramiko.SSHClient]:
     with ssh_lock:
         if ssh_client is not None:
             try:
-                # Test if connection is still alive
                 transport = ssh_client.get_transport()
                 if transport and transport.is_active():
                     return ssh_client
             except Exception:
                 pass
-            # Connection lost, reset
             try:
                 ssh_client.close()
             except Exception:
                 pass
             ssh_client = None
 
-        # Create new connection
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -117,7 +116,7 @@ def get_ssh_client() -> Optional[paramiko.SSHClient]:
             return None
 
 
-def execute_command(command: str) -> Optional[str]:
+def execute_command(command: str, store_key: str = None) -> Optional[str]:
     """Execute command via SSH and return output"""
     client = get_ssh_client()
     if not client:
@@ -127,12 +126,22 @@ def execute_command(command: str) -> Optional[str]:
         stdin, stdout, stderr = client.exec_command(command, timeout=15)
         output = stdout.read().decode('utf-8')
         error = stderr.read().decode('utf-8')
-        if error:
-            logger.warning(f"Command stderr: {error}")
+
+        # Store for debugging
+        if store_key:
+            debug_outputs[store_key] = {
+                'command': command,
+                'stdout': output,
+                'stderr': error,
+                'timestamp': datetime.now().isoformat()
+            }
+
+        if error and 'not found' not in error.lower():
+            logger.debug(f"Command stderr for {command}: {error}")
+
         return output
     except Exception as e:
         logger.error(f"Command execution failed: {e}")
-        # Reset connection on failure
         global ssh_client
         with ssh_lock:
             try:
@@ -148,7 +157,7 @@ def parse_temperatures() -> Dict[str, Optional[float]]:
     temps = {'temp1': None, 'temp2': None, 'optical_temp': None}
 
     # Read thermal zones
-    output = execute_command('cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null')
+    output = execute_command('cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null', 'thermal')
     if output:
         lines = output.strip().split('\n')
         for i, line in enumerate(lines[:2]):
@@ -158,25 +167,31 @@ def parse_temperatures() -> Dict[str, Optional[float]]:
             except (ValueError, IndexError):
                 pass
 
-    # Read optical temperature from SFP EEPROM (A2 page, offset 96-97)
-    output = execute_command('cat /sys/bus/i2c/devices/0-0051/eeprom 2>/dev/null | xxd -p -l 2 -s 96')
+    # Try multiple methods to get optical temperature
+    # Method 1: Direct EEPROM read (SFP DDM A2 page)
+    output = execute_command('hexdump -C /sys/bus/i2c/devices/0-0051/eeprom 2>/dev/null | head -20', 'eeprom_hex')
+
+    # Method 2: Try ethtool if available
+    output = execute_command('ethtool -m eth0 2>/dev/null | grep -i temp', 'ethtool')
     if output:
-        try:
-            hex_val = output.strip()
-            if len(hex_val) >= 4:
-                temp_raw = int(hex_val[:4], 16)
-                # Convert from signed 16-bit with 1/256 degree resolution
-                if temp_raw > 32767:
-                    temp_raw -= 65536
-                temps['optical_temp'] = temp_raw / 256.0
-        except (ValueError, Exception) as e:
-            logger.debug(f"Failed to parse optical temp: {e}")
+        match = re.search(r'Module temperature\s*:\s*([\d.]+)', output)
+        if match:
+            temps['optical_temp'] = float(match.group(1))
+
+    # Method 3: Try sfp-bus
+    if temps['optical_temp'] is None:
+        output = execute_command('cat /sys/class/hwmon/hwmon*/temp1_input 2>/dev/null', 'hwmon')
+        if output:
+            try:
+                temps['optical_temp'] = int(output.strip()) / 1000.0
+            except (ValueError, Exception):
+                pass
 
     return temps
 
 
 def parse_optical_stats() -> Dict[str, Optional[float]]:
-    """Parse optical interface statistics using pontop command"""
+    """Parse optical interface statistics"""
     stats = {
         'voltage': None,
         'bias_current': None,
@@ -184,30 +199,79 @@ def parse_optical_stats() -> Dict[str, Optional[float]]:
         'rx_power': None
     }
 
-    output = execute_command("pontop -b -g 'Optical Interface Status' 2>/dev/null")
-    if not output:
-        return stats
+    # Try pontop command (common on WAS-110)
+    output = execute_command("pontop -b 2>/dev/null", 'pontop_full')
 
-    # Parse voltage (typically in mV, convert to V)
-    voltage_match = re.search(r'Voltage\s*:\s*([\d.]+)\s*(?:mV|V)', output, re.IGNORECASE)
-    if voltage_match:
-        voltage = float(voltage_match.group(1))
-        stats['voltage'] = voltage / 1000.0 if voltage > 10 else voltage
+    if output:
+        debug_outputs['pontop_parsed'] = output
 
-    # Parse bias current (mA)
-    bias_match = re.search(r'Bias\s*Current\s*:\s*([\d.]+)\s*mA', output, re.IGNORECASE)
-    if bias_match:
-        stats['bias_current'] = float(bias_match.group(1))
+        # Parse voltage - multiple patterns
+        voltage_patterns = [
+            r'[Vv]oltage\s*[:\s]\s*([\d.]+)\s*(?:mV|V)',
+            r'VCC\s*[:\s]\s*([\d.]+)\s*(?:mV|V)',
+            r'Supply\s*[Vv]oltage\s*[:\s]\s*([\d.]+)',
+        ]
+        for pattern in voltage_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                voltage = float(match.group(1))
+                stats['voltage'] = voltage / 1000.0 if voltage > 10 else voltage
+                break
 
-    # Parse TX power (dBm)
-    tx_match = re.search(r'TX\s*Power\s*:\s*([-\d.]+)\s*dBm', output, re.IGNORECASE)
-    if tx_match:
-        stats['tx_power'] = float(tx_match.group(1))
+        # Parse bias current - multiple patterns
+        bias_patterns = [
+            r'[Bb]ias\s*[Cc]urrent\s*[:\s]\s*([\d.]+)\s*mA',
+            r'TX\s*[Bb]ias\s*[:\s]\s*([\d.]+)',
+            r'Laser\s*[Bb]ias\s*[:\s]\s*([\d.]+)',
+        ]
+        for pattern in bias_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                stats['bias_current'] = float(match.group(1))
+                break
 
-    # Parse RX power (dBm)
-    rx_match = re.search(r'RX\s*Power\s*:\s*([-\d.]+)\s*dBm', output, re.IGNORECASE)
-    if rx_match:
-        stats['rx_power'] = float(rx_match.group(1))
+        # Parse TX power - multiple patterns
+        tx_patterns = [
+            r'TX\s*[Pp]ower\s*[:\s]\s*([-\d.]+)\s*dBm',
+            r'[Tt]ransmit\s*[Pp]ower\s*[:\s]\s*([-\d.]+)',
+            r'Tx_Power\s*[:\s]\s*([-\d.]+)',
+        ]
+        for pattern in tx_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                stats['tx_power'] = float(match.group(1))
+                break
+
+        # Parse RX power - multiple patterns
+        rx_patterns = [
+            r'RX\s*[Pp]ower\s*[:\s]\s*([-\d.]+)\s*dBm',
+            r'[Rr]eceive\s*[Pp]ower\s*[:\s]\s*([-\d.]+)',
+            r'Rx_Power\s*[:\s]\s*([-\d.]+)',
+        ]
+        for pattern in rx_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                stats['rx_power'] = float(match.group(1))
+                break
+
+    # Try ethtool as fallback
+    if stats['tx_power'] is None or stats['rx_power'] is None:
+        output = execute_command('ethtool -m eth0 2>/dev/null', 'ethtool_full')
+        if output:
+            if stats['tx_power'] is None:
+                match = re.search(r'Laser output power\s*:\s*([-\d.]+)\s*dBm', output)
+                if match:
+                    stats['tx_power'] = float(match.group(1))
+
+            if stats['rx_power'] is None:
+                match = re.search(r'Receiver signal.*power\s*:\s*([-\d.]+)\s*dBm', output)
+                if match:
+                    stats['rx_power'] = float(match.group(1))
+
+            if stats['voltage'] is None:
+                match = re.search(r'Module voltage\s*:\s*([\d.]+)', output)
+                if match:
+                    stats['voltage'] = float(match.group(1))
 
     return stats
 
@@ -234,30 +298,52 @@ def parse_system_info() -> Dict[str, Optional[str]]:
         except (ValueError, IndexError):
             pass
 
-    # Get firmware version
-    output = execute_command('cat /etc/openwrt_release 2>/dev/null | grep DISTRIB_DESCRIPTION')
+    # Get firmware version - try multiple methods
+    output = execute_command('cat /etc/openwrt_release 2>/dev/null', 'firmware')
     if output:
         match = re.search(r"DISTRIB_DESCRIPTION='([^']+)'", output)
         if match:
             info['firmware'] = match.group(1)
 
-    # Get PON status
-    output = execute_command("pontop -b -g 'PON Status' 2>/dev/null")
-    if output:
-        pon_match = re.search(r'PON\s*Mode\s*:\s*(\w+)', output, re.IGNORECASE)
-        if pon_match:
-            info['pon_mode'] = pon_match.group(1)
+    if not info['firmware']:
+        output = execute_command('cat /etc/version 2>/dev/null')
+        if output:
+            info['firmware'] = output.strip()
 
-        state_match = re.search(r'ONU\s*State\s*:\s*(\w+)', output, re.IGNORECASE)
-        if state_match:
-            info['onu_state'] = state_match.group(1)
-
-    # Get LOID status
-    output = execute_command("pontop -b -g 'LOID Status' 2>/dev/null")
+    # Get PON status - try different commands
+    output = execute_command("pontop -b 2>/dev/null", 'pon_status')
     if output:
-        loid_match = re.search(r'Status\s*:\s*(\w+)', output, re.IGNORECASE)
-        if loid_match:
-            info['loid_status'] = loid_match.group(1)
+        # PON Mode
+        pon_patterns = [
+            r'PON\s*[Mm]ode\s*[:\s]\s*(\w+)',
+            r'Mode\s*[:\s]\s*(GPON|XGPON|EPON|XGS-PON)',
+        ]
+        for pattern in pon_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                info['pon_mode'] = match.group(1).upper()
+                break
+
+        # ONU State
+        state_patterns = [
+            r'ONU\s*[Ss]tate\s*[:\s]\s*(\w+)',
+            r'[Ss]tate\s*[:\s]\s*(O\d|Operation|Initial|Standby)',
+            r'Status\s*[:\s]\s*(Online|Offline|Registered)',
+        ]
+        for pattern in state_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                info['onu_state'] = match.group(1)
+                break
+
+    # Alternative: Try onu command
+    if not info['onu_state']:
+        output = execute_command('onu ploam_state_get 2>/dev/null', 'ploam')
+        if output:
+            match = re.search(r'curr_state\s*=\s*(\d+)', output)
+            if match:
+                state_map = {'5': 'O5 (Operation)', '1': 'O1 (Initial)', '2': 'O2', '3': 'O3', '4': 'O4'}
+                info['onu_state'] = state_map.get(match.group(1), f"O{match.group(1)}")
 
     return info
 
@@ -273,7 +359,12 @@ def fetch_data():
         optical = parse_optical_stats()
         system = parse_system_info()
 
-        now = datetime.now(pytz.timezone('America/Toronto'))
+        try:
+            tz = pytz.timezone(Config.TIMEZONE)
+        except Exception:
+            tz = pytz.UTC
+
+        now = datetime.now(tz)
 
         # Update current data
         current_data.update({
@@ -321,16 +412,7 @@ def save_history():
         os.makedirs(Config.DATA_DIR, exist_ok=True)
         filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
 
-        data = {
-            'timestamps': list(history['timestamps']),
-            'temp1': list(history['temp1']),
-            'temp2': list(history['temp2']),
-            'optical_temp': list(history['optical_temp']),
-            'voltage': list(history['voltage']),
-            'bias_current': list(history['bias_current']),
-            'tx_power': list(history['tx_power']),
-            'rx_power': list(history['rx_power']),
-        }
+        data = {key: list(values) for key, values in history.items()}
 
         with open(filepath, 'w') as f:
             json.dump(data, f)
@@ -367,6 +449,24 @@ def index():
     return send_from_directory('static', 'index.html')
 
 
+@app.route('/settings')
+def settings_page():
+    """Serve settings page"""
+    return send_from_directory('static', 'settings.html')
+
+
+@app.route('/manifest.json')
+def manifest():
+    """Serve PWA manifest"""
+    return send_from_directory('static', 'manifest.json')
+
+
+@app.route('/sw.js')
+def service_worker():
+    """Serve service worker"""
+    return send_from_directory('static', 'sw.js')
+
+
 @app.route('/static/<path:path>')
 def serve_static(path):
     """Serve static files"""
@@ -376,36 +476,15 @@ def serve_static(path):
 @app.route('/api/data')
 def get_data():
     """Get current data and history"""
-    # Calculate time until next refresh
-    next_refresh = Config.FETCH_INTERVAL_SECONDS
-
     return jsonify({
         'current': current_data,
-        'history': {
-            'timestamps': list(history['timestamps']),
-            'temp1': list(history['temp1']),
-            'temp2': list(history['temp2']),
-            'optical_temp': list(history['optical_temp']),
-            'voltage': list(history['voltage']),
-            'bias_current': list(history['bias_current']),
-            'tx_power': list(history['tx_power']),
-            'rx_power': list(history['rx_power']),
-        },
+        'history': {key: list(values) for key, values in history.items()},
         'config': {
             'fetch_interval': Config.FETCH_INTERVAL_SECONDS,
             'history_hours': Config.HISTORY_HOURS,
-            'thresholds': {
-                'temp_warning': Config.TEMP_WARNING,
-                'temp_critical': Config.TEMP_CRITICAL,
-                'optical_temp_warning': Config.OPTICAL_TEMP_WARNING,
-                'optical_temp_critical': Config.OPTICAL_TEMP_CRITICAL,
-                'rx_power_warning': Config.RX_POWER_WARNING,
-                'rx_power_critical': Config.RX_POWER_CRITICAL,
-                'tx_power_warning': Config.TX_POWER_WARNING,
-                'tx_power_critical': Config.TX_POWER_CRITICAL,
-            }
+            'thresholds': Config.get_thresholds()
         },
-        'next_refresh': next_refresh,
+        'next_refresh': Config.FETCH_INTERVAL_SECONDS,
         'alerts': notification_manager.get_current_status()
     })
 
@@ -420,7 +499,7 @@ def get_status():
         'config': {
             'sfp_host': Config.SFP_HOST,
             'fetch_interval': Config.FETCH_INTERVAL_SECONDS,
-            'notifications_enabled': Config.NOTIFICATIONS_ENABLED
+            'notifications': Config.get_notifications()
         }
     })
 
@@ -434,30 +513,72 @@ def get_alerts():
     })
 
 
-@app.route('/api/config')
-def get_config():
-    """Get current configuration (safe values only)"""
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Get all settings"""
     return jsonify({
-        'sfp_host': Config.SFP_HOST,
-        'fetch_interval': Config.FETCH_INTERVAL_SECONDS,
-        'history_hours': Config.HISTORY_HOURS,
-        'thresholds': {
-            'temp_warning': Config.TEMP_WARNING,
-            'temp_critical': Config.TEMP_CRITICAL,
-            'optical_temp_warning': Config.OPTICAL_TEMP_WARNING,
-            'optical_temp_critical': Config.OPTICAL_TEMP_CRITICAL,
-            'rx_power_warning': Config.RX_POWER_WARNING,
-            'rx_power_critical': Config.RX_POWER_CRITICAL,
-            'tx_power_warning': Config.TX_POWER_WARNING,
-            'tx_power_critical': Config.TX_POWER_CRITICAL,
-        },
-        'notifications': {
-            'enabled': Config.NOTIFICATIONS_ENABLED,
-            'email_configured': bool(Config.SMTP_HOST),
-            'webhook_configured': Config.WEBHOOK_ENABLED,
-            'discord_configured': bool(Config.DISCORD_WEBHOOK_URL),
-            'ntfy_configured': bool(Config.NTFY_URL and Config.NTFY_TOPIC)
+        'thresholds': Config.get_thresholds(),
+        'notifications': Config.get_notifications(),
+        'connection': {
+            'sfp_host': Config.SFP_HOST,
+            'fetch_interval': Config.FETCH_INTERVAL_SECONDS,
+            'history_hours': Config.HISTORY_HOURS
         }
+    })
+
+
+@app.route('/api/settings', methods=['POST'])
+def update_settings():
+    """Update settings"""
+    try:
+        data = request.get_json()
+        Config.update_settings(data)
+        return jsonify({'success': True, 'settings': Config.get_all_settings()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/settings/thresholds', methods=['POST'])
+def update_thresholds():
+    """Update threshold settings"""
+    try:
+        data = request.get_json()
+        for key, value in data.items():
+            Config.set(key, float(value))
+        return jsonify({'success': True, 'thresholds': Config.get_thresholds()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/settings/notifications', methods=['POST'])
+def update_notifications():
+    """Update notification settings"""
+    try:
+        data = request.get_json()
+        Config.update_settings(data)
+        return jsonify({'success': True, 'notifications': Config.get_notifications()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/notifications/test', methods=['POST'])
+def test_notifications():
+    """Send test notification"""
+    try:
+        results = notification_manager.send_test_notification()
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/debug')
+def get_debug():
+    """Get debug information including raw command outputs"""
+    return jsonify({
+        'current_data': current_data,
+        'connection_stats': connection_stats,
+        'raw_outputs': debug_outputs,
+        'settings': Config.get_all_settings()
     })
 
 
@@ -467,10 +588,13 @@ def export_data():
     format_type = request.args.get('format', 'json')
     hours = int(request.args.get('hours', Config.HISTORY_HOURS))
 
-    # Calculate cutoff time
-    cutoff = datetime.now(pytz.timezone('America/Toronto')) - timedelta(hours=hours)
+    try:
+        tz = pytz.timezone(Config.TIMEZONE)
+    except Exception:
+        tz = pytz.UTC
 
-    # Filter data
+    cutoff = datetime.now(tz) - timedelta(hours=hours)
+
     filtered_data = []
     for i, ts in enumerate(history['timestamps']):
         try:
@@ -540,13 +664,9 @@ scheduler = BackgroundScheduler()
 
 def init_app():
     """Initialize the application"""
-    # Load existing history
     load_history()
-
-    # Initial data fetch
     fetch_data()
 
-    # Schedule periodic fetches
     scheduler.add_job(
         fetch_data,
         'interval',

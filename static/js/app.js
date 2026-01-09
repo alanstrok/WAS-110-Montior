@@ -2,21 +2,19 @@
  * WAS-110 Monitor - Dashboard Application
  */
 
-// State
-let state = {
+const state = {
     data: null,
     config: null,
     connected: false,
     theme: localStorage.getItem('theme') || 'light',
-    timeRange: 3,  // hours
+    timeRange: 3,
     charts: {},
     socket: null,
     nextRefresh: 0,
     refreshInterval: null
 };
 
-// Chart colors
-const chartColors = {
+const colors = {
     temp1: { line: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)' },
     temp2: { line: '#f97316', bg: 'rgba(249, 115, 22, 0.1)' },
     optical_temp: { line: '#eab308', bg: 'rgba(234, 179, 8, 0.1)' },
@@ -30,13 +28,13 @@ const chartColors = {
 document.addEventListener('DOMContentLoaded', () => {
     applyTheme();
     initCharts();
-    setupEventListeners();
-    connectWebSocket();
+    setupEvents();
+    connectWS();
     fetchData();
-    startRefreshTimer();
+    startTimer();
 });
 
-// Theme handling
+// Theme
 function applyTheme() {
     document.documentElement.setAttribute('data-theme', state.theme);
     updateChartTheme();
@@ -49,32 +47,27 @@ function toggleTheme() {
 }
 
 function updateChartTheme() {
-    const textColor = state.theme === 'dark' ? '#94a3b8' : '#64748b';
-    const gridColor = state.theme === 'dark' ? '#334155' : '#e2e8f0';
-
-    Chart.defaults.color = textColor;
-    Chart.defaults.borderColor = gridColor;
-
-    // Update existing charts
-    Object.values(state.charts).forEach(chart => {
-        if (chart.options.scales) {
-            Object.values(chart.options.scales).forEach(scale => {
-                scale.grid.color = gridColor;
-                scale.ticks.color = textColor;
+    const text = state.theme === 'dark' ? '#94a3b8' : '#64748b';
+    const grid = state.theme === 'dark' ? '#334155' : '#e2e8f0';
+    Chart.defaults.color = text;
+    Chart.defaults.borderColor = grid;
+    Object.values(state.charts).forEach(c => {
+        if (c.options?.scales) {
+            Object.values(c.options.scales).forEach(s => {
+                if (s.grid) s.grid.color = grid;
+                if (s.ticks) s.ticks.color = text;
             });
         }
-        chart.update('none');
+        c.update('none');
     });
 }
 
-// Event listeners
-function setupEventListeners() {
-    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-    document.getElementById('refresh-btn').addEventListener('click', manualRefresh);
-
-    // Time range buttons
+// Events
+function setupEvents() {
+    document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);
+    document.getElementById('refresh-btn')?.addEventListener('click', manualRefresh);
     document.querySelectorAll('.time-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', e => {
             document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             state.timeRange = parseInt(e.target.dataset.hours);
@@ -83,414 +76,272 @@ function setupEventListeners() {
     });
 }
 
-// WebSocket connection
-function connectWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}`;
-
+// WebSocket
+function connectWS() {
     try {
-        state.socket = io(wsUrl);
-
-        state.socket.on('connect', () => {
-            console.log('WebSocket connected');
-        });
-
-        state.socket.on('data_update', (data) => {
-            console.log('Received data update');
+        state.socket = io();
+        state.socket.on('data_update', data => {
             if (data.current) {
                 state.data = { ...state.data, current: data.current };
                 updateUI();
             }
         });
-
-        state.socket.on('disconnect', () => {
-            console.log('WebSocket disconnected');
-        });
     } catch (e) {
-        console.warn('WebSocket not available, falling back to polling');
+        console.warn('WebSocket unavailable');
     }
 }
 
-// Data fetching
+// Data
 async function fetchData() {
     try {
-        const response = await fetch('/api/data');
-        const data = await response.json();
+        const res = await fetch('/api/data');
+        const data = await res.json();
         state.data = data;
         state.config = data.config;
         state.connected = data.current?.connected || false;
         state.nextRefresh = data.config?.fetch_interval || 60;
         updateUI();
-    } catch (error) {
-        console.error('Failed to fetch data:', error);
+    } catch (e) {
         state.connected = false;
-        updateConnectionStatus();
+        updateConnection();
     }
 }
 
 async function manualRefresh() {
     const btn = document.getElementById('refresh-btn');
-    btn.disabled = true;
     btn.classList.add('spinning');
-
     try {
-        const response = await fetch('/api/refresh', { method: 'POST' });
-        const data = await response.json();
-        if (data.success) {
-            await fetchData();
-        }
-    } catch (error) {
-        console.error('Refresh failed:', error);
+        await fetch('/api/refresh', { method: 'POST' });
+        await fetchData();
     } finally {
-        btn.disabled = false;
         btn.classList.remove('spinning');
     }
 }
 
-// Refresh timer
-function startRefreshTimer() {
-    if (state.refreshInterval) {
-        clearInterval(state.refreshInterval);
-    }
-
+// Timer
+function startTimer() {
+    if (state.refreshInterval) clearInterval(state.refreshInterval);
     state.refreshInterval = setInterval(() => {
         state.nextRefresh--;
         if (state.nextRefresh <= 0) {
             fetchData();
             state.nextRefresh = state.config?.fetch_interval || 60;
         }
-        updateRefreshTimer();
+        updateTimer();
     }, 1000);
 }
 
-function updateRefreshTimer() {
-    const timerEl = document.getElementById('next-refresh');
-    if (timerEl) {
-        const minutes = Math.floor(state.nextRefresh / 60);
-        const seconds = state.nextRefresh % 60;
-        timerEl.textContent = minutes > 0
-            ? `${minutes}m ${seconds}s`
-            : `${seconds}s`;
+function updateTimer() {
+    const el = document.getElementById('val-refresh');
+    if (el) {
+        const m = Math.floor(state.nextRefresh / 60);
+        const s = state.nextRefresh % 60;
+        el.textContent = m > 0 ? `${m}m ${s}s` : `${s}s`;
     }
 }
 
 // UI Updates
 function updateUI() {
-    updateConnectionStatus();
-    updateSystemInfo();
-    updateStatCards();
+    updateConnection();
+    updateInfo();
+    updateStats();
     updateCharts();
     updateAlerts();
 }
 
-function updateConnectionStatus() {
-    const statusEl = document.getElementById('connection-status');
+function updateConnection() {
+    const el = document.getElementById('connection-badge');
+    if (!el) return;
     if (state.connected) {
-        statusEl.className = 'connection-status connected';
-        statusEl.innerHTML = '<span class="status-dot"></span> Connected';
+        el.className = 'connection-badge connected';
+        el.innerHTML = '<span class="status-dot pulse"></span><span class="desktop-only">Connected</span>';
     } else {
-        statusEl.className = 'connection-status disconnected';
-        statusEl.innerHTML = '<span class="status-dot"></span> Disconnected';
+        el.className = 'connection-badge disconnected';
+        el.innerHTML = '<span class="status-dot pulse"></span><span class="desktop-only">Disconnected</span>';
     }
 }
 
-function updateSystemInfo() {
-    const current = state.data?.current;
-    if (!current) return;
-
-    document.getElementById('info-uptime').textContent = current.uptime || '--';
-    document.getElementById('info-firmware').textContent = current.firmware || '--';
-    document.getElementById('info-pon').textContent = current.pon_mode || '--';
-    document.getElementById('info-onu-state').textContent = current.onu_state || '--';
-    document.getElementById('info-last-update').textContent = current.last_update
-        ? new Date(current.last_update).toLocaleTimeString()
-        : '--';
+function updateInfo() {
+    const c = state.data?.current;
+    if (!c) return;
+    setText('info-uptime', c.uptime);
+    setText('info-firmware', c.firmware);
+    setText('info-pon', c.pon_mode);
+    setText('info-state', c.onu_state);
+    setText('info-updated', c.last_update ? new Date(c.last_update).toLocaleTimeString() : '--');
 }
 
-function updateStatCards() {
-    const current = state.data?.current;
-    const thresholds = state.config?.thresholds;
-    if (!current) return;
-
-    // Temperature cards
-    updateStatCard('temp1', current.temp1, '°C', thresholds?.temp_warning, thresholds?.temp_critical);
-    updateStatCard('temp2', current.temp2, '°C', thresholds?.temp_warning, thresholds?.temp_critical);
-    updateStatCard('optical-temp', current.optical_temp, '°C', thresholds?.optical_temp_warning, thresholds?.optical_temp_critical);
-
-    // Other metrics
-    updateStatCard('voltage', current.voltage, 'V');
-    updateStatCard('bias-current', current.bias_current, 'mA');
-    updateStatCard('tx-power', current.tx_power, 'dBm', thresholds?.tx_power_warning, thresholds?.tx_power_critical, true);
-    updateStatCard('rx-power', current.rx_power, 'dBm', thresholds?.rx_power_warning, thresholds?.rx_power_critical, true);
+function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val || '--';
 }
 
-function updateStatCard(id, value, unit, warning = null, critical = null, inverse = false) {
-    const card = document.getElementById(`stat-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
+function updateStats() {
+    const c = state.data?.current;
+    const t = state.config?.thresholds || {};
+    if (!c) return;
 
-    if (!card || !valueEl) return;
+    setVal('temp1', c.temp1, '°C', t.temp1_warning, t.temp1_critical);
+    setVal('temp2', c.temp2, '°C', t.temp2_warning, t.temp2_critical);
+    setVal('optical', c.optical_temp, '°C', t.optical_temp_warning, t.optical_temp_critical);
+    setVal('voltage', c.voltage, 'V');
+    setVal('tx', c.tx_power, 'dBm', t.tx_power_warning, t.tx_power_critical, true);
+    setVal('rx', c.rx_power, 'dBm', t.rx_power_warning, t.rx_power_critical, true);
+    setVal('bias', c.bias_current, 'mA');
+}
 
-    // Update value
-    if (value !== null && value !== undefined) {
-        valueEl.innerHTML = `${value.toFixed(2)}<span class="unit">${unit}</span>`;
+function setVal(key, val, unit, warn, crit, inverse = false) {
+    const card = document.getElementById(`card-${key}`);
+    const el = document.getElementById(`val-${key}`);
+    if (!el) return;
+
+    if (val !== null && val !== undefined) {
+        el.innerHTML = `${val.toFixed(2)}<span class="unit">${unit}</span>`;
     } else {
-        valueEl.innerHTML = `--<span class="unit">${unit}</span>`;
+        el.innerHTML = `--<span class="unit">${unit}</span>`;
     }
 
-    // Update status classes
-    card.classList.remove('warning', 'critical');
-    if (value !== null && warning !== null && critical !== null) {
-        if (inverse) {
-            // For power levels (lower is worse)
-            if (value < critical) card.classList.add('critical');
-            else if (value < warning) card.classList.add('warning');
-        } else {
-            // For temperatures (higher is worse)
-            if (value >= critical) card.classList.add('critical');
-            else if (value >= warning) card.classList.add('warning');
+    if (card) {
+        card.classList.remove('warning', 'critical');
+        if (val !== null && warn !== undefined && crit !== undefined) {
+            if (inverse) {
+                if (val < crit) card.classList.add('critical');
+                else if (val < warn) card.classList.add('warning');
+            } else {
+                if (val >= crit) card.classList.add('critical');
+                else if (val >= warn) card.classList.add('warning');
+            }
         }
     }
 }
 
 // Charts
 function initCharts() {
-    const commonOptions = {
+    const opts = {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-            mode: 'index',
-            intersect: false,
-        },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-            legend: {
-                position: 'top',
-                labels: {
-                    usePointStyle: true,
-                    padding: 15
-                }
-            },
-            tooltip: {
-                backgroundColor: state.theme === 'dark' ? '#1e293b' : '#ffffff',
-                titleColor: state.theme === 'dark' ? '#f1f5f9' : '#1a1a2e',
-                bodyColor: state.theme === 'dark' ? '#94a3b8' : '#64748b',
-                borderColor: state.theme === 'dark' ? '#334155' : '#e2e8f0',
-                borderWidth: 1,
-                cornerRadius: 8,
-                padding: 12
-            }
+            legend: { position: 'top', labels: { usePointStyle: true, padding: 10, boxWidth: 6 } }
         },
         scales: {
-            x: {
-                type: 'time',
-                time: {
-                    displayFormats: {
-                        minute: 'HH:mm',
-                        hour: 'HH:mm'
-                    }
-                },
-                grid: {
-                    display: false
-                }
-            },
-            y: {
-                beginAtZero: false,
-                grid: {
-                    color: state.theme === 'dark' ? '#334155' : '#e2e8f0'
-                }
-            }
+            x: { type: 'time', time: { displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, grid: { display: false } },
+            y: { beginAtZero: false }
         }
     };
 
-    // Temperature chart
-    state.charts.temperature = new Chart(document.getElementById('chart-temperature'), {
-        type: 'line',
-        data: {
-            datasets: [
-                createDataset('CPU 0', 'temp1'),
-                createDataset('CPU 1', 'temp2'),
-                createDataset('Optical', 'optical_temp')
-            ]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    title: { display: true, text: 'Temperature (°C)' }
-                }
-            }
-        }
-    });
+    const tempEl = document.getElementById('chart-temp');
+    if (tempEl) {
+        state.charts.temp = new Chart(tempEl, {
+            type: 'line',
+            data: { datasets: [ds('CPU 0', 'temp1'), ds('CPU 1', 'temp2'), ds('Optical', 'optical_temp')] },
+            options: opts
+        });
+    }
 
-    // Voltage chart
-    state.charts.voltage = new Chart(document.getElementById('chart-voltage'), {
-        type: 'line',
-        data: {
-            datasets: [createDataset('Supply Voltage', 'voltage')]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    title: { display: true, text: 'Voltage (V)' }
-                }
-            }
-        }
-    });
+    const powerEl = document.getElementById('chart-power');
+    if (powerEl) {
+        state.charts.power = new Chart(powerEl, {
+            type: 'line',
+            data: { datasets: [ds('TX', 'tx_power'), ds('RX', 'rx_power')] },
+            options: opts
+        });
+    }
 
-    // Bias current chart
-    state.charts.bias = new Chart(document.getElementById('chart-bias'), {
-        type: 'line',
-        data: {
-            datasets: [createDataset('Bias Current', 'bias_current')]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    title: { display: true, text: 'Current (mA)' }
-                }
-            }
-        }
-    });
+    const voltEl = document.getElementById('chart-voltage');
+    if (voltEl) {
+        state.charts.voltage = new Chart(voltEl, {
+            type: 'line',
+            data: { datasets: [ds('Voltage', 'voltage')] },
+            options: opts
+        });
+    }
 
-    // Optical power chart
-    state.charts.power = new Chart(document.getElementById('chart-power'), {
-        type: 'line',
-        data: {
-            datasets: [
-                createDataset('TX Power', 'tx_power'),
-                createDataset('RX Power', 'rx_power')
-            ]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    title: { display: true, text: 'Power (dBm)' }
-                }
-            }
-        }
-    });
+    const biasEl = document.getElementById('chart-bias');
+    if (biasEl) {
+        state.charts.bias = new Chart(biasEl, {
+            type: 'line',
+            data: { datasets: [ds('Bias', 'bias_current')] },
+            options: opts
+        });
+    }
 }
 
-function createDataset(label, key) {
-    const colors = chartColors[key] || { line: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' };
-    return {
-        label: label,
-        data: [],
-        borderColor: colors.line,
-        backgroundColor: colors.bg,
-        borderWidth: 2,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 4
-    };
+function ds(label, key) {
+    const c = colors[key] || { line: '#3b82f6', bg: 'rgba(59,130,246,0.1)' };
+    return { label, data: [], borderColor: c.line, backgroundColor: c.bg, borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0 };
 }
 
 function updateCharts() {
-    if (!state.data?.history) return;
+    const h = state.data?.history;
+    if (!h) return;
 
-    const history = state.data.history;
-    const cutoffTime = Date.now() - (state.timeRange * 60 * 60 * 1000);
-
-    // Filter data by time range
-    const filteredIndices = [];
-    history.timestamps.forEach((ts, i) => {
-        const time = new Date(ts).getTime();
-        if (time >= cutoffTime) {
-            filteredIndices.push(i);
-        }
+    const cutoff = Date.now() - state.timeRange * 3600000;
+    const idx = [];
+    h.timestamps.forEach((ts, i) => {
+        if (new Date(ts).getTime() >= cutoff) idx.push(i);
     });
 
-    // Update temperature chart
-    updateChartData(state.charts.temperature, history, filteredIndices, ['temp1', 'temp2', 'optical_temp']);
-
-    // Update voltage chart
-    updateChartData(state.charts.voltage, history, filteredIndices, ['voltage']);
-
-    // Update bias chart
-    updateChartData(state.charts.bias, history, filteredIndices, ['bias_current']);
-
-    // Update power chart
-    updateChartData(state.charts.power, history, filteredIndices, ['tx_power', 'rx_power']);
+    if (state.charts.temp) updateChart(state.charts.temp, h, idx, ['temp1', 'temp2', 'optical_temp']);
+    if (state.charts.power) updateChart(state.charts.power, h, idx, ['tx_power', 'rx_power']);
+    if (state.charts.voltage) updateChart(state.charts.voltage, h, idx, ['voltage']);
+    if (state.charts.bias) updateChart(state.charts.bias, h, idx, ['bias_current']);
 }
 
-function updateChartData(chart, history, indices, keys) {
-    keys.forEach((key, datasetIndex) => {
-        const data = indices.map(i => ({
-            x: new Date(history.timestamps[i]),
-            y: history[key][i]
-        })).filter(d => d.y !== null);
-
-        chart.data.datasets[datasetIndex].data = data;
+function updateChart(chart, h, idx, keys) {
+    keys.forEach((k, i) => {
+        chart.data.datasets[i].data = idx.map(j => ({ x: new Date(h.timestamps[j]), y: h[k][j] })).filter(d => d.y !== null);
     });
-
     chart.update('none');
 }
 
 // Alerts
 async function updateAlerts() {
     try {
-        const response = await fetch('/api/alerts');
-        const data = await response.json();
+        const res = await fetch('/api/alerts');
+        const data = await res.json();
         renderAlerts(data.history || []);
-    } catch (error) {
-        console.error('Failed to fetch alerts:', error);
-    }
+    } catch (e) {}
 }
 
 function renderAlerts(alerts) {
-    const container = document.getElementById('alerts-list');
-    if (!container) return;
-
-    if (alerts.length === 0) {
-        container.innerHTML = '<div class="no-alerts">No recent alerts</div>';
+    const el = document.getElementById('alerts-list');
+    if (!el) return;
+    if (!alerts.length) {
+        el.innerHTML = '<div class="no-alerts">No recent alerts</div>';
         return;
     }
-
-    // Show last 10 alerts, most recent first
-    const recentAlerts = alerts.slice(-10).reverse();
-
-    container.innerHTML = recentAlerts.map(alert => `
+    const recent = alerts.slice(-10).reverse();
+    el.innerHTML = recent.map(a => `
         <div class="alert-item">
-            <div class="alert-icon ${alert.level}">
-                ${getAlertIcon(alert.level)}
-            </div>
+            <div class="alert-badge ${a.level}">${icon(a.level)}</div>
             <div class="alert-content">
-                <div class="alert-title">${alert.name}</div>
-                <div class="alert-message">${alert.message}</div>
+                <div class="alert-title">${a.name}</div>
+                <div class="alert-message">${a.message}</div>
             </div>
-            <div class="alert-time">${formatTime(alert.timestamp)}</div>
+            <div class="alert-time">${ago(a.timestamp)}</div>
         </div>
     `).join('');
 }
 
-function getAlertIcon(level) {
-    const icons = {
-        critical: '⚠️',
-        warning: '⚡',
-        recovery: '✅',
-        info: 'ℹ️'
-    };
-    return icons[level] || icons.info;
+function icon(l) {
+    return { critical: '🔴', warning: '🟠', recovery: '🟢', info: '🔵' }[l] || '🔵';
 }
 
-function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
+function ago(ts) {
+    const d = Date.now() - new Date(ts).getTime();
+    if (d < 60000) return 'now';
+    if (d < 3600000) return `${Math.floor(d / 60000)}m`;
+    if (d < 86400000) return `${Math.floor(d / 3600000)}h`;
+    return new Date(ts).toLocaleDateString();
+}
 
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    return date.toLocaleDateString();
+// Toast
+function showToast(msg, dur = 3000) {
+    const t = document.getElementById('toast');
+    if (t) {
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), dur);
+    }
 }

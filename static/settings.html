@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#3b82f6">
+    <title>Settings - WAS-110 Monitor</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo">Settings</h1>
+            <div class="header-actions">
+                <a href="/" class="icon-btn" title="Back to Dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                </a>
+                <button id="theme-btn" class="icon-btn" title="Toggle theme">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- Alert Thresholds -->
+        <div class="settings-section">
+            <div class="settings-header">🌡️ Temperature Thresholds</div>
+            <div class="settings-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">CPU Warning (°C)</label>
+                        <input type="number" class="form-input" id="temp1_warning" value="65">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CPU Critical (°C)</label>
+                        <input type="number" class="form-input" id="temp1_critical" value="75">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Optical Warning (°C)</label>
+                        <input type="number" class="form-input" id="optical_temp_warning" value="55">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Optical Critical (°C)</label>
+                        <input type="number" class="form-input" id="optical_temp_critical" value="65">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-header">📡 Power Thresholds</div>
+            <div class="settings-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">RX Warning (dBm)</label>
+                        <input type="number" step="0.1" class="form-input" id="rx_power_warning" value="-25">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">RX Critical (dBm)</label>
+                        <input type="number" step="0.1" class="form-input" id="rx_power_critical" value="-28">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">TX Warning (dBm)</label>
+                        <input type="number" step="0.1" class="form-input" id="tx_power_warning" value="-1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">TX Critical (dBm)</label>
+                        <input type="number" step="0.1" class="form-input" id="tx_power_critical" value="-3">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-block" id="save-thresholds">Save Thresholds</button>
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="settings-section">
+            <div class="settings-header">🔔 Notifications</div>
+            <div class="settings-content">
+                <div class="toggle-group">
+                    <span class="toggle-label">Enable Notifications</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="notifications_enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gotify -->
+        <div class="settings-section">
+            <div class="settings-header">📱 Gotify</div>
+            <div class="settings-content">
+                <div class="toggle-group">
+                    <span class="toggle-label">Enable Gotify</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="gotify_enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Server URL</label>
+                    <input type="url" class="form-input" id="gotify_url" placeholder="https://gotify.example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">App Token</label>
+                    <input type="password" class="form-input" id="gotify_token" placeholder="Your Gotify app token">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Priority (1-10)</label>
+                    <input type="number" class="form-input" id="gotify_priority" value="8" min="1" max="10">
+                </div>
+            </div>
+        </div>
+
+        <!-- Ntfy -->
+        <div class="settings-section">
+            <div class="settings-header">📲 Ntfy</div>
+            <div class="settings-content">
+                <div class="toggle-group">
+                    <span class="toggle-label">Enable Ntfy</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="ntfy_enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Server URL</label>
+                    <input type="url" class="form-input" id="ntfy_url" placeholder="https://ntfy.sh" value="https://ntfy.sh">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Topic</label>
+                    <input type="text" class="form-input" id="ntfy_topic" placeholder="was110-alerts">
+                </div>
+            </div>
+        </div>
+
+        <!-- Webhook -->
+        <div class="settings-section">
+            <div class="settings-header">🔗 Webhook</div>
+            <div class="settings-content">
+                <div class="toggle-group">
+                    <span class="toggle-label">Enable Webhook</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="webhook_enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Webhook URL</label>
+                    <input type="url" class="form-input" id="webhook_url" placeholder="https://your-webhook.com/endpoint">
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="settings-section">
+            <div class="settings-content">
+                <button class="btn btn-primary btn-block" id="save-notifications" style="margin-bottom: 0.75rem">
+                    Save Notification Settings
+                </button>
+                <button class="btn btn-secondary btn-block" id="test-notifications">
+                    Send Test Notification
+                </button>
+            </div>
+        </div>
+
+        <!-- Debug -->
+        <div class="settings-section">
+            <div class="settings-header">🔧 Debug</div>
+            <div class="settings-content">
+                <button class="btn btn-secondary btn-block" id="show-debug">
+                    Show Debug Info
+                </button>
+                <pre id="debug-output" style="display:none; margin-top:1rem; font-size:0.75rem; overflow-x:auto; background:var(--bg-primary); padding:1rem; border-radius:8px;"></pre>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Nav (Mobile) -->
+    <nav class="bottom-nav">
+        <a href="/" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            Dashboard
+        </a>
+        <a href="/settings" class="nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+            Settings
+        </a>
+    </nav>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Theme
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+
+        document.getElementById('theme-btn').addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+
+        // Toast
+        function showToast(msg, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        // Load settings
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+
+                // Thresholds
+                const t = data.thresholds;
+                document.getElementById('temp1_warning').value = t.temp1_warning;
+                document.getElementById('temp1_critical').value = t.temp1_critical;
+                document.getElementById('optical_temp_warning').value = t.optical_temp_warning;
+                document.getElementById('optical_temp_critical').value = t.optical_temp_critical;
+                document.getElementById('rx_power_warning').value = t.rx_power_warning;
+                document.getElementById('rx_power_critical').value = t.rx_power_critical;
+                document.getElementById('tx_power_warning').value = t.tx_power_warning;
+                document.getElementById('tx_power_critical').value = t.tx_power_critical;
+
+                // Notifications
+                const n = data.notifications;
+                document.getElementById('notifications_enabled').checked = n.enabled;
+                document.getElementById('gotify_enabled').checked = n.gotify.enabled;
+                document.getElementById('gotify_url').value = n.gotify.url || '';
+                document.getElementById('gotify_token').value = n.gotify.token || '';
+                document.getElementById('gotify_priority').value = n.gotify.priority || 8;
+                document.getElementById('ntfy_enabled').checked = n.ntfy.enabled;
+                document.getElementById('ntfy_url').value = n.ntfy.url || 'https://ntfy.sh';
+                document.getElementById('ntfy_topic').value = n.ntfy.topic || '';
+                document.getElementById('webhook_enabled').checked = n.webhook.enabled;
+                document.getElementById('webhook_url').value = n.webhook.url || '';
+            } catch (e) {
+                showToast('Failed to load settings');
+            }
+        }
+
+        // Save thresholds
+        document.getElementById('save-thresholds').addEventListener('click', async () => {
+            const data = {
+                temp1_warning: parseFloat(document.getElementById('temp1_warning').value),
+                temp1_critical: parseFloat(document.getElementById('temp1_critical').value),
+                temp2_warning: parseFloat(document.getElementById('temp1_warning').value),
+                temp2_critical: parseFloat(document.getElementById('temp1_critical').value),
+                optical_temp_warning: parseFloat(document.getElementById('optical_temp_warning').value),
+                optical_temp_critical: parseFloat(document.getElementById('optical_temp_critical').value),
+                rx_power_warning: parseFloat(document.getElementById('rx_power_warning').value),
+                rx_power_critical: parseFloat(document.getElementById('rx_power_critical').value),
+                tx_power_warning: parseFloat(document.getElementById('tx_power_warning').value),
+                tx_power_critical: parseFloat(document.getElementById('tx_power_critical').value),
+            };
+
+            try {
+                const res = await fetch('/api/settings/thresholds', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) showToast('Thresholds saved!');
+                else showToast('Failed to save');
+            } catch (e) {
+                showToast('Error saving thresholds');
+            }
+        });
+
+        // Save notifications
+        document.getElementById('save-notifications').addEventListener('click', async () => {
+            const data = {
+                notifications_enabled: document.getElementById('notifications_enabled').checked,
+                gotify_enabled: document.getElementById('gotify_enabled').checked,
+                gotify_url: document.getElementById('gotify_url').value,
+                gotify_token: document.getElementById('gotify_token').value,
+                gotify_priority: parseInt(document.getElementById('gotify_priority').value),
+                ntfy_enabled: document.getElementById('ntfy_enabled').checked,
+                ntfy_url: document.getElementById('ntfy_url').value,
+                ntfy_topic: document.getElementById('ntfy_topic').value,
+                webhook_enabled: document.getElementById('webhook_enabled').checked,
+                webhook_url: document.getElementById('webhook_url').value,
+            };
+
+            try {
+                const res = await fetch('/api/settings/notifications', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) showToast('Notification settings saved!');
+                else showToast('Failed to save');
+            } catch (e) {
+                showToast('Error saving notifications');
+            }
+        });
+
+        // Test notifications
+        document.getElementById('test-notifications').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/notifications/test', { method: 'POST' });
+                const data = await res.json();
+                if (data.results.success.length > 0) {
+                    showToast(`Test sent to: ${data.results.success.join(', ')}`);
+                } else {
+                    showToast('No notifications sent. Check settings.');
+                }
+            } catch (e) {
+                showToast('Error sending test');
+            }
+        });
+
+        // Debug
+        document.getElementById('show-debug').addEventListener('click', async () => {
+            const output = document.getElementById('debug-output');
+            if (output.style.display === 'none') {
+                try {
+                    const res = await fetch('/api/debug');
+                    const data = await res.json();
+                    output.textContent = JSON.stringify(data, null, 2);
+                    output.style.display = 'block';
+                } catch (e) {
+                    output.textContent = 'Error loading debug info';
+                    output.style.display = 'block';
+                }
+            } else {
+                output.style.display = 'none';
+            }
+        });
+
+        loadSettings();
+    </script>
+</body>
+</html>
