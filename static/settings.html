@@ -224,10 +224,12 @@
         });
 
         // Toast
-        function showToast(msg, duration = 3000) {
+        function showToast(msg, isError = false) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
+            toast.style.background = isError ? '#dc3545' : '#333';
             toast.classList.add('show');
+            const duration = isError ? 6000 : 3000;
             setTimeout(() => toast.classList.remove('show'), duration);
         }
 
@@ -328,11 +330,17 @@
                 const data = await res.json();
                 if (data.results.success.length > 0) {
                     showToast(`Test sent to: ${data.results.success.join(', ')}`);
-                } else {
-                    showToast('No notifications sent. Check settings.');
+                }
+                if (data.results.failed && data.results.failed.length > 0) {
+                    const errors = data.results.failed.map(f => `${f.channel}: ${f.error}`).join('; ');
+                    showToast(`Failed: ${errors}`, true);
+                    console.error('Notification failures:', data.results.failed);
+                }
+                if (data.results.success.length === 0 && (!data.results.failed || data.results.failed.length === 0)) {
+                    showToast('No notifications configured or enabled.');
                 }
             } catch (e) {
-                showToast('Error sending test');
+                showToast('Error sending test: ' + e.message, true);
             }
         });
 

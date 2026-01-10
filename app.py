@@ -578,6 +578,39 @@ def test_notifications():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@app.route('/api/notifications/debug')
+def debug_notifications():
+    """Get notification configuration for debugging (masks sensitive tokens)"""
+    notif_config = Config.get_notifications()
+
+    # Mask sensitive data
+    debug_config = {
+        'enabled': notif_config['enabled'],
+        'gotify': {
+            'enabled': notif_config['gotify']['enabled'],
+            'url': notif_config['gotify']['url'],
+            'token_set': bool(notif_config['gotify']['token']),
+            'token_preview': notif_config['gotify']['token'][:8] + '...' if notif_config['gotify']['token'] and len(notif_config['gotify']['token']) > 8 else '(not set)',
+            'priority': notif_config['gotify']['priority'],
+        },
+        'ntfy': {
+            'enabled': notif_config['ntfy']['enabled'],
+            'url': notif_config['ntfy']['url'],
+            'topic': notif_config['ntfy']['topic'],
+        },
+        'webhook': {
+            'enabled': notif_config['webhook']['enabled'],
+            'url_set': bool(notif_config['webhook']['url']),
+        },
+        'email': {
+            'enabled': notif_config['email']['enabled'],
+            'smtp_host': notif_config['email']['smtp_host'],
+            'smtp_port': notif_config['email']['smtp_port'],
+        }
+    }
+    return jsonify(debug_config)
+
+
 @app.route('/api/debug')
 def get_debug():
     """Get debug information including raw command outputs"""

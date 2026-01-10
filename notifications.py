@@ -191,9 +191,13 @@ class NotificationManager:
             if notif_config['email']['enabled']:
                 self._send_email(alert, notif_config['email'])
 
-    def _send_gotify(self, alert: Dict, config: Dict):
+    def _send_gotify(self, alert: Dict, config: Dict, raise_on_error: bool = False):
         """Send Gotify notification"""
         if not config.get('url') or not config.get('token'):
+            error_msg = "Gotify URL or token not configured"
+            logger.error(error_msg)
+            if raise_on_error:
+                raise ValueError(error_msg)
             return
 
         try:
@@ -201,6 +205,7 @@ class NotificationManager:
             priority = priority_map.get(alert['level'], config.get('priority', 8))
 
             url = f"{config['url'].rstrip('/')}/message?token={config['token']}"
+            logger.debug(f"Sending Gotify notification to: {config['url'].rstrip('/')}/message")
 
             payload = {
                 "title": f"WAS-110: {alert['name']} [{alert['level'].upper()}]",
@@ -214,10 +219,17 @@ class NotificationManager:
             }
 
             response = requests.post(url, json=payload, timeout=10)
+            logger.debug(f"Gotify response status: {response.status_code}, body: {response.text[:200]}")
             response.raise_for_status()
             logger.info(f"Gotify notification sent for {alert['name']} alert")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to send Gotify notification: {e}")
+            if raise_on_error:
+                raise
         except Exception as e:
             logger.error(f"Failed to send Gotify notification: {e}")
+            if raise_on_error:
+                raise
 
     def _send_ntfy(self, alert: Dict, config: Dict):
         """Send ntfy.sh notification"""
@@ -308,7 +320,7 @@ Time: {alert['timestamp']}
 
         if notif_config['gotify']['enabled']:
             try:
-                self._send_gotify(test_alert, notif_config['gotify'])
+                self._send_gotify(test_alert, notif_config['gotify'], raise_on_error=True)
                 results['success'].append('gotify')
             except Exception as e:
                 results['failed'].append({'channel': 'gotify', 'error': str(e)})
