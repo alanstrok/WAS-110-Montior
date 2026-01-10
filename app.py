@@ -102,13 +102,14 @@ def get_ssh_client() -> Optional[paramiko.SSHClient]:
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.connect(
                 Config.SFP_HOST,
+                port=Config.SFP_PORT,
                 username=Config.SFP_USER,
                 password=Config.SFP_ROOT_PASSWORD,
                 timeout=10,
                 banner_timeout=10
             )
             ssh_client = client
-            logger.info(f"SSH connection established to {Config.SFP_HOST}")
+            logger.info(f"SSH connection established to {Config.SFP_HOST}:{Config.SFP_PORT}")
             return ssh_client
         except Exception as e:
             logger.error(f"SSH connection failed: {e}")

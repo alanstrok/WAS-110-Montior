@@ -38,6 +38,7 @@ class Config:
 
     # WAS-110 Connection
     SFP_HOST = os.getenv('SFP_HOST', '192.168.11.1')
+    SFP_PORT = int(os.getenv('SFP_PORT', '22'))
     SFP_USER = os.getenv('SFP_USER', 'root')
     SFP_ROOT_PASSWORD = os.getenv('SFP_ROOT_PASSWORD', '')
 
