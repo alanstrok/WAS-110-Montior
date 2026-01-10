@@ -420,33 +420,42 @@ def save_history():
         filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
 
         data = {key: list(values) for key, values in history.items()}
+        points = len(data.get('timestamps', []))
 
         with open(filepath, 'w') as f:
             json.dump(data, f)
 
+        logger.debug(f"Saved {points} history points to {filepath}")
+
     except Exception as e:
-        logger.error(f"Failed to save history: {e}")
+        logger.error(f"Failed to save history to {Config.DATA_DIR}: {e}")
 
 
 def load_history():
     """Load history from JSON file"""
     try:
         filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
+        logger.info(f"Looking for history file at: {filepath}")
+
         if not os.path.exists(filepath):
+            logger.info(f"No history file found at {filepath}, starting fresh")
             return
 
         with open(filepath, 'r') as f:
             data = json.load(f)
+
+        file_points = len(data.get('timestamps', []))
+        logger.info(f"Found {file_points} points in history file")
 
         for key in history.keys():
             if key in data:
                 for value in data[key]:
                     history[key].append(value)
 
-        logger.info(f"Loaded {len(history['timestamps'])} history points")
+        logger.info(f"Loaded {len(history['timestamps'])} history points into memory")
 
     except Exception as e:
-        logger.error(f"Failed to load history: {e}")
+        logger.error(f"Failed to load history from {filepath}: {e}")
 
 
 # Flask Routes
@@ -614,11 +623,24 @@ def debug_notifications():
 @app.route('/api/debug')
 def get_debug():
     """Get debug information including raw command outputs"""
+    # Check history file status
+    filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
+    history_file_exists = os.path.exists(filepath)
+    history_file_size = os.path.getsize(filepath) if history_file_exists else 0
+
     return jsonify({
         'current_data': current_data,
         'connection_stats': connection_stats,
         'raw_outputs': debug_outputs,
-        'settings': Config.get_all_settings()
+        'settings': Config.get_all_settings(),
+        'history_status': {
+            'data_dir': Config.DATA_DIR,
+            'file_path': filepath,
+            'file_exists': history_file_exists,
+            'file_size_bytes': history_file_size,
+            'points_in_memory': len(history['timestamps']),
+            'max_points': MAX_HISTORY_POINTS
+        }
     })
 
 
