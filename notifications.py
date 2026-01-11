@@ -92,21 +92,41 @@ class NotificationManager:
             if alert:
                 alerts.append(alert)
 
-        # Voltage (low is bad)
+        # Voltage LOW (undervoltage is bad)
         if data.get('voltage') is not None:
             voltage = data['voltage']
-            if voltage < thresholds['voltage_critical']:
-                alert = self._create_alert('voltage', voltage, AlertLevel.CRITICAL,
-                    "Supply Voltage", f"{voltage:.2f}V (critical < {thresholds['voltage_critical']}V)")
+            voltage_low_warning = thresholds.get('voltage_low_warning', 2.95)
+            voltage_low_critical = thresholds.get('voltage_low_critical', 2.85)
+            voltage_high_warning = thresholds.get('voltage_high_warning', 3.45)
+            voltage_high_critical = thresholds.get('voltage_high_critical', 3.6)
+
+            # Check LOW voltage (undervoltage)
+            if voltage < voltage_low_critical:
+                alert = self._create_alert('voltage_low', voltage, AlertLevel.CRITICAL,
+                    "Supply Voltage LOW", f"{voltage:.2f}V (critical < {voltage_low_critical}V)")
                 if alert:
                     alerts.append(alert)
-            elif voltage < thresholds['voltage_warning']:
-                alert = self._create_alert('voltage', voltage, AlertLevel.WARNING,
-                    "Supply Voltage", f"{voltage:.2f}V (warning < {thresholds['voltage_warning']}V)")
+            elif voltage < voltage_low_warning:
+                alert = self._create_alert('voltage_low', voltage, AlertLevel.WARNING,
+                    "Supply Voltage LOW", f"{voltage:.2f}V (warning < {voltage_low_warning}V)")
                 if alert:
                     alerts.append(alert)
-            elif self.last_alerts.get('voltage') in [AlertLevel.WARNING, AlertLevel.CRITICAL]:
-                alerts.append(self._create_recovery('voltage', voltage, "Supply Voltage"))
+            elif self.last_alerts.get('voltage_low') in [AlertLevel.WARNING, AlertLevel.CRITICAL]:
+                alerts.append(self._create_recovery('voltage_low', voltage, "Supply Voltage LOW"))
+
+            # Check HIGH voltage (overvoltage)
+            if voltage > voltage_high_critical:
+                alert = self._create_alert('voltage_high', voltage, AlertLevel.CRITICAL,
+                    "Supply Voltage HIGH", f"{voltage:.2f}V (critical > {voltage_high_critical}V)")
+                if alert:
+                    alerts.append(alert)
+            elif voltage > voltage_high_warning:
+                alert = self._create_alert('voltage_high', voltage, AlertLevel.WARNING,
+                    "Supply Voltage HIGH", f"{voltage:.2f}V (warning > {voltage_high_warning}V)")
+                if alert:
+                    alerts.append(alert)
+            elif self.last_alerts.get('voltage_high') in [AlertLevel.WARNING, AlertLevel.CRITICAL]:
+                alerts.append(self._create_recovery('voltage_high', voltage, "Supply Voltage HIGH"))
 
         # RX Power (low is bad)
         if data.get('rx_power') is not None:

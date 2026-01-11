@@ -73,22 +73,29 @@ class Config:
 
     @classmethod
     def get_thresholds(cls):
-        """Get alert thresholds"""
+        """Get alert thresholds - defaults based on WAS-110/PRX126 specs with 5% margin"""
         return {
-            'temp1_warning': cls._settings.get('temp1_warning', float(os.getenv('TEMP_WARNING', '65'))),
-            'temp1_critical': cls._settings.get('temp1_critical', float(os.getenv('TEMP_CRITICAL', '75'))),
-            'temp2_warning': cls._settings.get('temp2_warning', float(os.getenv('TEMP_WARNING', '65'))),
-            'temp2_critical': cls._settings.get('temp2_critical', float(os.getenv('TEMP_CRITICAL', '75'))),
-            'optical_temp_warning': cls._settings.get('optical_temp_warning', float(os.getenv('OPTICAL_TEMP_WARNING', '55'))),
-            'optical_temp_critical': cls._settings.get('optical_temp_critical', float(os.getenv('OPTICAL_TEMP_CRITICAL', '65'))),
-            'rx_power_warning': cls._settings.get('rx_power_warning', float(os.getenv('RX_POWER_WARNING', '-25'))),
-            'rx_power_critical': cls._settings.get('rx_power_critical', float(os.getenv('RX_POWER_CRITICAL', '-28'))),
-            'tx_power_warning': cls._settings.get('tx_power_warning', float(os.getenv('TX_POWER_WARNING', '-1'))),
-            'tx_power_critical': cls._settings.get('tx_power_critical', float(os.getenv('TX_POWER_CRITICAL', '-3'))),
-            'voltage_warning': cls._settings.get('voltage_warning', 3.1),
-            'voltage_critical': cls._settings.get('voltage_critical', 3.0),
-            'bias_current_warning': cls._settings.get('bias_current_warning', 50),
-            'bias_current_critical': cls._settings.get('bias_current_critical', 70),
+            # Temperature thresholds (HIGH - alert when above)
+            'temp1_warning': cls._settings.get('temp1_warning', float(os.getenv('TEMP_WARNING', '66.5'))),
+            'temp1_critical': cls._settings.get('temp1_critical', float(os.getenv('TEMP_CRITICAL', '76'))),
+            'temp2_warning': cls._settings.get('temp2_warning', float(os.getenv('TEMP_WARNING', '66.5'))),
+            'temp2_critical': cls._settings.get('temp2_critical', float(os.getenv('TEMP_CRITICAL', '76'))),
+            'optical_temp_warning': cls._settings.get('optical_temp_warning', float(os.getenv('OPTICAL_TEMP_WARNING', '52'))),
+            'optical_temp_critical': cls._settings.get('optical_temp_critical', float(os.getenv('OPTICAL_TEMP_CRITICAL', '62'))),
+            # Power thresholds (LOW - alert when below)
+            'rx_power_warning': cls._settings.get('rx_power_warning', float(os.getenv('RX_POWER_WARNING', '-24.7'))),
+            'rx_power_critical': cls._settings.get('rx_power_critical', float(os.getenv('RX_POWER_CRITICAL', '-26.6'))),
+            'tx_power_warning': cls._settings.get('tx_power_warning', float(os.getenv('TX_POWER_WARNING', '4.3'))),
+            'tx_power_critical': cls._settings.get('tx_power_critical', float(os.getenv('TX_POWER_CRITICAL', '3.8'))),
+            # Voltage LOW thresholds (alert when below)
+            'voltage_low_warning': cls._settings.get('voltage_low_warning', 2.95),
+            'voltage_low_critical': cls._settings.get('voltage_low_critical', 2.85),
+            # Voltage HIGH thresholds (alert when above)
+            'voltage_high_warning': cls._settings.get('voltage_high_warning', 3.45),
+            'voltage_high_critical': cls._settings.get('voltage_high_critical', 3.6),
+            # Bias current thresholds (HIGH - alert when above)
+            'bias_current_warning': cls._settings.get('bias_current_warning', 57),
+            'bias_current_critical': cls._settings.get('bias_current_critical', 76),
         }
 
     @classmethod
