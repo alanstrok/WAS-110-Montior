@@ -9,7 +9,7 @@ A modern, real-time monitoring webapp for WAS-110 SFP+ ONT modules with alerting
 - **Real-time Monitoring**: Live dashboard with WebSocket updates
 - **Temperature Tracking**: CPU and optical module temperatures
 - **Optical Metrics**: TX/RX power, bias current, supply voltage
-- **System Info**: Uptime, firmware version, PON status, ONU state
+- **System Info**: PON status, ONU state
 - **Historical Data**: Up to 72 hours of history with interactive charts
 - **Alerting System**: Configurable thresholds with warning/critical levels
 - **Multiple Notification Channels**:
@@ -33,9 +33,6 @@ docker run -d \
   -p 5050:5050 \
   -v /path/to/data:/data \
   -e SFP_HOST=192.168.11.1 \
-  -e SFP_PORT=22 \
-  -e SFP_USER=root \
-  -e SFP_ROOT_PASSWORD=your_password \
   ghcr.io/alanstrok/was-110-montior:latest
 ```
 
@@ -57,9 +54,6 @@ services:
       - ./data:/data
     environment:
       - SFP_HOST=192.168.11.1
-      - SFP_PORT=22
-      - SFP_USER=root
-      - SFP_ROOT_PASSWORD=your_password
       # Optional settings
       - FETCH_INTERVAL_SECONDS=60
       - HISTORY_HOURS=72
@@ -81,7 +75,7 @@ Access the dashboard at `http://localhost:5050`
    - **Repository**: `ghcr.io/alanstrok/was-110-montior:latest`
    - **Port**: `5050:5050`
    - **Path**: `/mnt/user/appdata/was-110-monitor` → `/data`
-   - **Variables**: `SFP_HOST`, `SFP_PORT`, `SFP_USER`, `SFP_ROOT_PASSWORD`
+   - **Variables**: `SFP_HOST`
 
 ### Manual Installation
 
@@ -92,7 +86,7 @@ pip install -r requirements.txt
 
 2. Set environment variables:
 ```bash
-export SFP_ROOT_PASSWORD="your_password"
+export SFP_HOST="192.168.11.1"
 ```
 
 3. Run the application:
@@ -107,9 +101,6 @@ python app.py
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SFP_HOST` | `192.168.11.1` | WAS-110 IP address |
-| `SFP_PORT` | `22` | SSH port |
-| `SFP_USER` | `root` | SSH username |
-| `SFP_ROOT_PASSWORD` | - | SSH password (required) |
 | `FETCH_INTERVAL_SECONDS` | `60` | Data collection interval |
 | `HISTORY_HOURS` | `72` | Hours of history to keep |
 | `TZ` | `UTC` | Timezone |
@@ -175,32 +166,33 @@ curl "http://localhost:5050/api/export?format=csv&hours=6" > data.csv
 ## Architecture
 
 ```
-┌─────────────────┐     SSH      ┌─────────────┐
-│   WAS-110 ONT   │◄────────────►│   Monitor   │
-│  192.168.11.1   │              │   Backend   │
-└─────────────────┘              └──────┬──────┘
-                                        │
-                                        │ WebSocket/REST
-                                        │
-                                 ┌──────▼──────┐
-                                 │  Dashboard  │
-                                 │  (Browser)  │
-                                 └─────────────┘
+┌─────────────────┐    HTTP API    ┌─────────────┐
+│   WAS-110 ONT   │◄──────────────►│   Monitor   │
+│  192.168.11.1   │  /8311/metrics │   Backend   │
+└─────────────────┘                └──────┬──────┘
+                                          │
+                                          │ WebSocket/REST
+                                          │
+                                   ┌──────▼──────┐
+                                   │  Dashboard  │
+                                   │  (Browser)  │
+                                   └─────────────┘
 ```
 
 ## Metrics Collected
 
-| Metric | Source | Unit |
-|--------|--------|------|
-| CPU 0 Temperature | `/sys/class/thermal/thermal_zone0/temp` | °C |
-| CPU 1 Temperature | `/sys/class/thermal/thermal_zone1/temp` | °C |
-| Optical Temperature | SFP EEPROM (A2, offset 96) | °C |
-| Supply Voltage | `pontop -b -g 'Optical Interface Status'` | V |
-| Bias Current | `pontop -b -g 'Optical Interface Status'` | mA |
-| TX Power | `pontop -b -g 'Optical Interface Status'` | dBm |
-| RX Power | `pontop -b -g 'Optical Interface Status'` | dBm |
-| PON Mode | `pontop -b -g 'PON Status'` | - |
-| ONU State | `pontop -b -g 'PON Status'` | - |
+Data is fetched from the WAS-110 HTTP API endpoint `/cgi-bin/luci/8311/metrics`:
+
+| Metric | JSON Field | Unit |
+|--------|------------|------|
+| CPU 0 Temperature | `cpu1_tempC` | °C |
+| CPU 1 Temperature | `cpu2_tempC` | °C |
+| Optical Temperature | `optic_tempC` | °C |
+| Supply Voltage | `module_voltage` | V |
+| Bias Current | `tx_bias_mA` | mA |
+| TX Power | `tx_power_dBm` | dBm |
+| RX Power | `rx_power_dBm` | dBm |
+| PLOAM State | `ploam_state` | - |
 
 ## Troubleshooting
 
@@ -211,14 +203,14 @@ curl "http://localhost:5050/api/export?format=csv&hours=6" > data.csv
 ping 192.168.11.1
 ```
 
-2. Test SSH connection:
+2. Test the metrics API:
 ```bash
-ssh root@192.168.11.1
+curl http://192.168.11.1/cgi-bin/luci/8311/metrics
 ```
 
 3. Check container logs:
 ```bash
-docker-compose logs -f
+docker logs was-110-monitor
 ```
 
 ### High Temperatures

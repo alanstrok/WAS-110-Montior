@@ -36,11 +36,8 @@ def save_settings(settings):
 class Config:
     _settings = load_settings()
 
-    # WAS-110 Connection
+    # WAS-110 Connection (HTTP API)
     SFP_HOST = os.getenv('SFP_HOST', '192.168.11.1')
-    SFP_PORT = int(os.getenv('SFP_PORT', '22'))
-    SFP_USER = os.getenv('SFP_USER', 'root')
-    SFP_ROOT_PASSWORD = os.getenv('SFP_ROOT_PASSWORD', '')
 
     # Data Collection
     FETCH_INTERVAL_SECONDS = int(os.getenv('FETCH_INTERVAL_SECONDS', '60'))
@@ -50,7 +47,7 @@ class Config:
     # Web Server
     DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
     PORT = int(os.getenv('PORT', '5050'))
-    TIMEZONE = os.getenv('TIMEZONE', 'America/Toronto')
+    TIMEZONE = os.getenv('TZ', os.getenv('TIMEZONE', 'UTC'))
 
     @classmethod
     def get(cls, key, default=None):
