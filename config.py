@@ -114,6 +114,11 @@ class Config:
                 'url': cls._settings.get('ntfy_url', os.getenv('NTFY_URL', '')),
                 'topic': cls._settings.get('ntfy_topic', os.getenv('NTFY_TOPIC', '')),
             },
+            'discord': {
+                'enabled': cls._settings.get('discord_enabled', False),
+                'webhook_url': cls._settings.get('discord_webhook_url', os.getenv('DISCORD_WEBHOOK_URL', '')),
+                'username': cls._settings.get('discord_username', 'WAS-110 Monitor'),
+            },
             'webhook': {
                 'enabled': cls._settings.get('webhook_enabled', False),
                 'url': cls._settings.get('webhook_url', os.getenv('WEBHOOK_URL', '')),

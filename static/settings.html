@@ -191,9 +191,80 @@
             </div>
         </div>
 
+        <!-- Discord -->
+        <div class="settings-section">
+            <div class="settings-header">🎮 Discord</div>
+            <div class="settings-content">
+                <div class="toggle-group">
+                    <span class="toggle-label">Enable Discord</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="discord_enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Webhook URL</label>
+                    <input type="url" class="form-input" id="discord_webhook_url" placeholder="https://discord.com/api/webhooks/...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bot Username (optional)</label>
+                    <input type="text" class="form-input" id="discord_username" placeholder="WAS-110 Monitor">
+                </div>
+            </div>
+        </div>
+
+        <!-- Email SMTP -->
+        <div class="settings-section">
+            <div class="settings-header">📧 Email (SMTP)</div>
+            <div class="settings-content">
+                <div class="toggle-group">
+                    <span class="toggle-label">Enable Email</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="email_enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">SMTP Host</label>
+                        <input type="text" class="form-input" id="smtp_host" placeholder="smtp.gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Port</label>
+                        <input type="number" class="form-input" id="smtp_port" value="587">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="smtp_user" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="smtp_password" placeholder="App password">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">From</label>
+                        <input type="email" class="form-input" id="smtp_from" placeholder="alerts@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">To</label>
+                        <input type="email" class="form-input" id="smtp_to" placeholder="you@example.com">
+                    </div>
+                </div>
+                <div class="toggle-group">
+                    <span class="toggle-label">Use TLS</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="smtp_tls" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <!-- Webhook -->
         <div class="settings-section">
-            <div class="settings-header">🔗 Webhook</div>
+            <div class="settings-header">🔗 Generic Webhook</div>
             <div class="settings-content">
                 <div class="toggle-group">
                     <span class="toggle-label">Enable Webhook</span>
@@ -309,6 +380,17 @@
                 document.getElementById('ntfy_enabled').checked = n.ntfy.enabled;
                 document.getElementById('ntfy_url').value = n.ntfy.url || 'https://ntfy.sh';
                 document.getElementById('ntfy_topic').value = n.ntfy.topic || '';
+                document.getElementById('discord_enabled').checked = n.discord?.enabled || false;
+                document.getElementById('discord_webhook_url').value = n.discord?.webhook_url || '';
+                document.getElementById('discord_username').value = n.discord?.username || 'WAS-110 Monitor';
+                document.getElementById('email_enabled').checked = n.email?.enabled || false;
+                document.getElementById('smtp_host').value = n.email?.smtp_host || '';
+                document.getElementById('smtp_port').value = n.email?.smtp_port || 587;
+                document.getElementById('smtp_user').value = n.email?.smtp_user || '';
+                document.getElementById('smtp_password').value = n.email?.smtp_password || '';
+                document.getElementById('smtp_from').value = n.email?.smtp_from || '';
+                document.getElementById('smtp_to').value = n.email?.smtp_to || '';
+                document.getElementById('smtp_tls').checked = n.email?.smtp_tls !== false;
                 document.getElementById('webhook_enabled').checked = n.webhook.enabled;
                 document.getElementById('webhook_url').value = n.webhook.url || '';
             } catch (e) {
@@ -361,6 +443,17 @@
                 ntfy_enabled: document.getElementById('ntfy_enabled').checked,
                 ntfy_url: document.getElementById('ntfy_url').value,
                 ntfy_topic: document.getElementById('ntfy_topic').value,
+                discord_enabled: document.getElementById('discord_enabled').checked,
+                discord_webhook_url: document.getElementById('discord_webhook_url').value,
+                discord_username: document.getElementById('discord_username').value || 'WAS-110 Monitor',
+                email_enabled: document.getElementById('email_enabled').checked,
+                smtp_host: document.getElementById('smtp_host').value,
+                smtp_port: parseInt(document.getElementById('smtp_port').value) || 587,
+                smtp_user: document.getElementById('smtp_user').value,
+                smtp_password: document.getElementById('smtp_password').value,
+                smtp_from: document.getElementById('smtp_from').value,
+                smtp_to: document.getElementById('smtp_to').value,
+                smtp_tls: document.getElementById('smtp_tls').checked,
                 webhook_enabled: document.getElementById('webhook_enabled').checked,
                 webhook_url: document.getElementById('webhook_url').value,
             };

@@ -1,6 +1,6 @@
 """
 WAS-110 Monitor - Notification System
-Supports Gotify, Ntfy, Webhook, and Email
+Supports Gotify, Ntfy, Discord, Webhook, and Email
 """
 import os
 import json
@@ -251,6 +251,8 @@ class NotificationManager:
                 self._send_gotify(alert, notif_config['gotify'])
             if notif_config['ntfy']['enabled']:
                 self._send_ntfy(alert, notif_config['ntfy'])
+            if notif_config['discord']['enabled']:
+                self._send_discord(alert, notif_config['discord'])
             if notif_config['webhook']['enabled']:
                 self._send_webhook(alert, notif_config['webhook'])
             if notif_config['email']['enabled']:
@@ -316,6 +318,53 @@ class NotificationManager:
             logger.info(f"Ntfy notification sent for {alert['name']} alert")
         except Exception as e:
             logger.error(f"Failed to send ntfy notification: {e}")
+
+    def _send_discord(self, alert: Dict, config: Dict, raise_on_error: bool = False):
+        """Send Discord webhook notification with rich embed"""
+        if not config.get('webhook_url'):
+            error_msg = "Discord webhook URL not configured"
+            logger.error(error_msg)
+            if raise_on_error:
+                raise ValueError(error_msg)
+            return
+
+        try:
+            # Color codes for Discord embeds (decimal format)
+            color_map = {
+                "critical": 15158332,  # Red #E74C3C
+                "warning": 15105570,   # Orange #E67E22
+                "recovery": 3066993,   # Green #2ECC71
+                "info": 3447003        # Blue #3498DB
+            }
+
+            embed = {
+                "title": f"WAS-110: {alert['name']}",
+                "description": alert['message'],
+                "color": color_map.get(alert['level'], 3447003),
+                "fields": [
+                    {"name": "Level", "value": alert['level'].upper(), "inline": True},
+                    {"name": "Value", "value": str(alert['value']), "inline": True},
+                ],
+                "timestamp": alert['timestamp'],
+                "footer": {"text": "WAS-110 Monitor"}
+            }
+
+            payload = {
+                "username": config.get('username', 'WAS-110 Monitor'),
+                "embeds": [embed]
+            }
+
+            response = requests.post(config['webhook_url'], json=payload, timeout=10)
+            response.raise_for_status()
+            logger.info(f"Discord notification sent for {alert['name']} alert")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to send Discord notification: {e}")
+            if raise_on_error:
+                raise
+        except Exception as e:
+            logger.error(f"Failed to send Discord notification: {e}")
+            if raise_on_error:
+                raise
 
     def _send_webhook(self, alert: Dict, config: Dict):
         """Send generic webhook notification"""
@@ -396,6 +445,13 @@ Time: {alert['timestamp']}
                 results['success'].append('ntfy')
             except Exception as e:
                 results['failed'].append({'channel': 'ntfy', 'error': str(e)})
+
+        if notif_config['discord']['enabled']:
+            try:
+                self._send_discord(test_alert, notif_config['discord'], raise_on_error=True)
+                results['success'].append('discord')
+            except Exception as e:
+                results['failed'].append({'channel': 'discord', 'error': str(e)})
 
         if notif_config['webhook']['enabled']:
             try:
