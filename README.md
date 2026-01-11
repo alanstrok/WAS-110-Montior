@@ -2,7 +2,7 @@
 
 A modern, real-time monitoring webapp for WAS-110 SFP+ ONT modules with alerting and notifications.
 
-![Dashboard Preview](docs/dashboard.png)
+![Dashboard Preview](was-dashboard.png)
 
 ## Features
 
