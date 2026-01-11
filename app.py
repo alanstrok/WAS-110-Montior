@@ -53,8 +53,6 @@ history = {
 current_data: Dict[str, Any] = {
     'connected': False,
     'last_update': None,
-    'uptime': None,
-    'firmware': None,
     'temp1': None,
     'temp2': None,
     'optical_temp': None,

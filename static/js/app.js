@@ -164,8 +164,6 @@ function updateConnection() {
 function updateInfo() {
     const c = state.data?.current;
     if (!c) return;
-    setText('info-uptime', c.uptime);
-    setText('info-firmware', c.firmware);
     setText('info-pon', c.pon_mode);
     setText('info-state', c.onu_state);
     setText('info-updated', c.last_update ? new Date(c.last_update).toLocaleTimeString() : '--');
