@@ -332,7 +332,8 @@ def update_thresholds():
     """Update alert thresholds"""
     try:
         data = request.get_json()
-        Config.update_settings({'thresholds': data})
+        # Save flat keys directly, not nested under 'thresholds'
+        Config.update_settings(data)
         return jsonify({'success': True, 'thresholds': Config.get_thresholds()})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
