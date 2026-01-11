@@ -2,6 +2,8 @@
 WAS-110 Monitor - Notification System
 Supports Gotify, Ntfy, Webhook, and Email
 """
+import os
+import json
 import logging
 import smtplib
 from email.mime.text import MIMEText
@@ -13,6 +15,8 @@ import requests
 from config import Config
 
 logger = logging.getLogger(__name__)
+
+ALERTS_FILE = os.path.join(Config.DATA_DIR, 'alerts_history.json')
 
 
 class AlertLevel:
@@ -28,6 +32,27 @@ class NotificationManager:
         self.alert_history: List[Dict] = []
         self.cooldown_minutes = 15
         self.last_notification_time: Dict[str, datetime] = {}
+        self._load_alert_history()
+
+    def _load_alert_history(self):
+        """Load alert history from file"""
+        try:
+            if os.path.exists(ALERTS_FILE):
+                with open(ALERTS_FILE, 'r') as f:
+                    self.alert_history = json.load(f)
+                logger.info(f"Loaded {len(self.alert_history)} alerts from history")
+        except Exception as e:
+            logger.error(f"Failed to load alert history: {e}")
+            self.alert_history = []
+
+    def _save_alert_history(self):
+        """Save alert history to file"""
+        try:
+            os.makedirs(os.path.dirname(ALERTS_FILE), exist_ok=True)
+            with open(ALERTS_FILE, 'w') as f:
+                json.dump(self.alert_history[-100:], f)
+        except Exception as e:
+            logger.error(f"Failed to save alert history: {e}")
 
     def check_thresholds(self, data: Dict) -> List[Dict]:
         """Check all metrics against thresholds and return alerts"""
@@ -115,6 +140,24 @@ class NotificationManager:
             elif self.last_alerts.get('tx_power') in [AlertLevel.WARNING, AlertLevel.CRITICAL]:
                 alerts.append(self._create_recovery('tx_power', tx, "TX Power"))
 
+        # Bias Current (high is bad)
+        if data.get('bias_current') is not None:
+            bias = data['bias_current']
+            bias_warning = thresholds.get('bias_current_warning', 50)
+            bias_critical = thresholds.get('bias_current_critical', 70)
+            if bias >= bias_critical:
+                alert = self._create_alert('bias_current', bias, AlertLevel.CRITICAL,
+                    "Bias Current", f"{bias:.2f} mA (critical >= {bias_critical} mA)")
+                if alert:
+                    alerts.append(alert)
+            elif bias >= bias_warning:
+                alert = self._create_alert('bias_current', bias, AlertLevel.WARNING,
+                    "Bias Current", f"{bias:.2f} mA (warning >= {bias_warning} mA)")
+                if alert:
+                    alerts.append(alert)
+            elif self.last_alerts.get('bias_current') in [AlertLevel.WARNING, AlertLevel.CRITICAL]:
+                alerts.append(self._create_recovery('bias_current', bias, "Bias Current"))
+
         return alerts
 
     def _check_metric(self, key: str, value: float, warning: float,
@@ -156,6 +199,7 @@ class NotificationManager:
         if len(self.alert_history) > 100:
             self.alert_history = self.alert_history[-100:]
 
+        self._save_alert_history()
         return alert
 
     def _create_recovery(self, key: str, value: float, name: str) -> Dict:
@@ -172,6 +216,7 @@ class NotificationManager:
             'timestamp': datetime.now().isoformat()
         }
         self.alert_history.append(alert)
+        self._save_alert_history()
         return alert
 
     def send_notifications(self, alerts: List[Dict]):

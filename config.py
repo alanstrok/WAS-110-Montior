@@ -87,6 +87,8 @@ class Config:
             'tx_power_critical': cls._settings.get('tx_power_critical', float(os.getenv('TX_POWER_CRITICAL', '-3'))),
             'voltage_warning': cls._settings.get('voltage_warning', 3.1),
             'voltage_critical': cls._settings.get('voltage_critical', 3.0),
+            'bias_current_warning': cls._settings.get('bias_current_warning', 50),
+            'bias_current_critical': cls._settings.get('bias_current_critical', 70),
         }
 
     @classmethod
