@@ -726,6 +726,7 @@ scheduler = BackgroundScheduler()
 
 def init_app():
     """Initialize the application"""
+    logger.info("Initializing WAS-110 Monitor...")
     load_history()
     fetch_data()
 
@@ -740,6 +741,9 @@ def init_app():
     logger.info(f"WAS-110 Monitor started. Fetching every {Config.FETCH_INTERVAL_SECONDS}s")
 
 
+# Initialize on module load (works with gunicorn)
+init_app()
+
+
 if __name__ == '__main__':
-    init_app()
     socketio.run(app, host='0.0.0.0', port=Config.PORT, debug=Config.DEBUG)
