@@ -11,8 +11,12 @@ from collections import deque
 from typing import Dict, Any
 
 import requests
+import urllib3
 import pytz
 from flask import Flask, jsonify, request, send_from_directory
+
+# Suppress SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -100,7 +104,8 @@ def fetch_metrics() -> Dict[str, Any]:
         url = f"http://{Config.SFP_HOST}/cgi-bin/luci/8311/metrics"
         logger.debug(f"Fetching metrics from {url}")
 
-        response = requests.get(url, timeout=10)
+        # Disable SSL verification in case of redirect to HTTPS with self-signed cert
+        response = requests.get(url, timeout=10, verify=False)
         response.raise_for_status()
 
         data = response.json()
