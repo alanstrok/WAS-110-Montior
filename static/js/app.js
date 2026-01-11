@@ -239,11 +239,20 @@ function initCharts() {
         });
     }
 
-    const powerEl = document.getElementById('chart-power');
-    if (powerEl) {
-        state.charts.power = new Chart(powerEl, {
+    const txEl = document.getElementById('chart-tx');
+    if (txEl) {
+        state.charts.tx = new Chart(txEl, {
             type: 'line',
-            data: { datasets: [ds('TX', 'tx_power'), ds('RX', 'rx_power')] },
+            data: { datasets: [ds('TX', 'tx_power')] },
+            options: opts
+        });
+    }
+
+    const rxEl = document.getElementById('chart-rx');
+    if (rxEl) {
+        state.charts.rx = new Chart(rxEl, {
+            type: 'line',
+            data: { datasets: [ds('RX', 'rx_power')] },
             options: opts
         });
     }
@@ -283,7 +292,8 @@ function updateCharts() {
     });
 
     if (state.charts.temp) updateChart(state.charts.temp, h, idx, ['temp1', 'temp2', 'optical_temp']);
-    if (state.charts.power) updateChart(state.charts.power, h, idx, ['tx_power', 'rx_power']);
+    if (state.charts.tx) updateChart(state.charts.tx, h, idx, ['tx_power']);
+    if (state.charts.rx) updateChart(state.charts.rx, h, idx, ['rx_power']);
     if (state.charts.voltage) updateChart(state.charts.voltage, h, idx, ['voltage']);
     if (state.charts.bias) updateChart(state.charts.bias, h, idx, ['bias_current']);
 }
