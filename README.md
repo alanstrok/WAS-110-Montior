@@ -232,9 +232,6 @@ WAS-110 modules are known to run hot. If temperatures consistently exceed 70°C:
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
-## License
-
-MIT License - see LICENSE file for details.
 
 ## Credits
 
