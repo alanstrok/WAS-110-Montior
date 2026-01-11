@@ -283,7 +283,7 @@
             };
 
             try {
-                const res = await fetch('/api/settings/thresholds', {
+                const res = await fetch('/api/thresholds', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -311,7 +311,7 @@
             };
 
             try {
-                const res = await fetch('/api/settings/notifications', {
+                const res = await fetch('/api/notifications', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
