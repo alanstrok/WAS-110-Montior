@@ -309,6 +309,24 @@ body {
 .time-btn:hover { background: var(--bg-primary); }
 .time-btn.active { background: var(--status-info); color: white; }
 
+/* Small Button */
+.btn-small {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-small:hover {
+    background: var(--status-critical);
+    color: white;
+    border-color: var(--status-critical);
+}
+
 /* Charts */
 .charts-grid {
     display: grid;

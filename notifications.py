@@ -477,6 +477,14 @@ Time: {alert['timestamp']}
         """Return current alert status for all metrics"""
         return self.last_alerts.copy()
 
+    def clear_alert_history(self):
+        """Clear all alert history"""
+        self.alert_history = []
+        self.last_alerts = {}
+        self.last_notification_time = {}
+        self._save_alert_history()
+        logger.info("Alert history cleared")
+
 
 # Global instance
 notification_manager = NotificationManager()

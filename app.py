@@ -292,6 +292,16 @@ def get_alerts():
     })
 
 
+@app.route('/api/alerts/reset', methods=['POST'])
+def reset_alerts():
+    """Clear all alert history"""
+    try:
+        notification_manager.clear_alert_history()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 @app.route('/api/config')
 def get_config():
     """Get current configuration"""

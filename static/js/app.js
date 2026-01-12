@@ -66,14 +66,40 @@ function updateChartTheme() {
 function setupEvents() {
     document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);
     document.getElementById('refresh-btn')?.addEventListener('click', manualRefresh);
+    document.getElementById('reset-alerts-btn')?.addEventListener('click', resetAlerts);
+    document.getElementById('reset-zoom-btn')?.addEventListener('click', resetChartZoom);
     document.querySelectorAll('.time-btn').forEach(btn => {
         btn.addEventListener('click', e => {
             document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             state.timeRange = parseInt(e.target.dataset.hours);
             updateCharts();
+            // Reset zoom when changing time range
+            Object.values(state.charts).forEach(c => c.resetZoom());
         });
     });
+}
+
+// Reset chart zoom
+function resetChartZoom() {
+    Object.values(state.charts).forEach(c => c.resetZoom());
+    showToast('Zoom reset');
+}
+
+// Reset alerts
+async function resetAlerts() {
+    if (!confirm('Clear all alerts history?')) return;
+    try {
+        const res = await fetch('/api/alerts/reset', { method: 'POST' });
+        if (res.ok) {
+            showToast('Alerts cleared');
+            updateAlerts();
+        } else {
+            showToast('Failed to clear alerts');
+        }
+    } catch (e) {
+        showToast('Error clearing alerts');
+    }
 }
 
 // WebSocket
@@ -220,7 +246,20 @@ function initCharts() {
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-            legend: { position: 'top', labels: { usePointStyle: true, padding: 10, boxWidth: 6 } }
+            legend: { position: 'top', labels: { usePointStyle: true, padding: 10, boxWidth: 6 } },
+            zoom: {
+                pan: {
+                    enabled: true,
+                    mode: 'x',
+                    modifierKey: null
+                },
+                zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    drag: { enabled: true, modifierKey: 'shift' },
+                    mode: 'x'
+                }
+            }
         },
         scales: {
             x: { type: 'time', time: { displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, grid: { display: false } },
