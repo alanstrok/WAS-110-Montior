@@ -41,7 +41,7 @@ class Config:
 
     # Data Collection
     FETCH_INTERVAL_SECONDS = int(os.getenv('FETCH_INTERVAL_SECONDS', '60'))
-    HISTORY_HOURS = int(os.getenv('HISTORY_HOURS', '72'))
+    HISTORY_HOURS = int(os.getenv('HISTORY_HOURS', '168'))  # 7 days
     DATA_DIR = os.getenv('DATA_DIR', '/data')
 
     # Web Server

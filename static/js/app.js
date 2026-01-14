@@ -7,7 +7,7 @@ const state = {
     config: null,
     connected: false,
     theme: localStorage.getItem('theme') || 'light',
-    timeRange: 3,
+    timeRange: 24,
     charts: {},
     socket: null,
     nextRefresh: 0,
@@ -80,10 +80,24 @@ function setupEvents() {
     });
 }
 
-// Reset chart zoom
+// Reset chart zoom to selected time range
 function resetChartZoom() {
-    Object.values(state.charts).forEach(c => c.resetZoom());
-    showToast('Zoom reset');
+    const h = state.data?.history;
+    if (!h || !h.timestamps.length) {
+        Object.values(state.charts).forEach(c => c.resetZoom());
+        return;
+    }
+
+    const cutoff = Date.now() - state.timeRange * 3600000;
+    const minTime = Math.max(cutoff, new Date(h.timestamps[0]).getTime());
+    const maxTime = new Date(h.timestamps[h.timestamps.length - 1]).getTime();
+
+    Object.values(state.charts).forEach(c => {
+        c.options.scales.x.min = minTime;
+        c.options.scales.x.max = maxTime;
+        c.update('none');
+        c.resetZoom();
+    });
 }
 
 // Reset alerts
@@ -248,10 +262,12 @@ function initCharts() {
         plugins: {
             legend: { position: 'top', labels: { usePointStyle: true, padding: 10, boxWidth: 6 } },
             zoom: {
+                limits: {
+                    x: { min: 'original', max: 'original', minRange: 60000 } // Min 1 minute range
+                },
                 pan: {
                     enabled: true,
-                    mode: 'x',
-                    modifierKey: null
+                    mode: 'x'
                 },
                 zoom: {
                     wheel: { enabled: true },
@@ -262,7 +278,7 @@ function initCharts() {
             }
         },
         scales: {
-            x: { type: 'time', time: { displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, grid: { display: false } },
+            x: { type: 'time', time: { displayFormats: { minute: 'HH:mm', hour: 'HH:mm', day: 'dd/MM' } }, grid: { display: false } },
             y: { beginAtZero: false }
         }
     };
@@ -311,7 +327,7 @@ function ds(label, key) {
 
 function updateCharts() {
     const h = state.data?.history;
-    if (!h) return;
+    if (!h || !h.timestamps.length) return;
 
     const cutoff = Date.now() - state.timeRange * 3600000;
     const idx = [];
@@ -319,16 +335,27 @@ function updateCharts() {
         if (new Date(ts).getTime() >= cutoff) idx.push(i);
     });
 
-    if (state.charts.temp) updateChart(state.charts.temp, h, idx, ['temp1', 'temp2', 'optical_temp']);
-    if (state.charts.power) updateChart(state.charts.power, h, idx, ['tx_power', 'rx_power']);
-    if (state.charts.voltage) updateChart(state.charts.voltage, h, idx, ['voltage']);
-    if (state.charts.bias) updateChart(state.charts.bias, h, idx, ['bias_current']);
+    // Calculate time bounds for zoom limits
+    const minTime = idx.length > 0 ? new Date(h.timestamps[idx[0]]).getTime() : cutoff;
+    const maxTime = idx.length > 0 ? new Date(h.timestamps[idx[idx.length - 1]]).getTime() : Date.now();
+
+    if (state.charts.temp) updateChart(state.charts.temp, h, idx, ['temp1', 'temp2', 'optical_temp'], minTime, maxTime);
+    if (state.charts.power) updateChart(state.charts.power, h, idx, ['tx_power', 'rx_power'], minTime, maxTime);
+    if (state.charts.voltage) updateChart(state.charts.voltage, h, idx, ['voltage'], minTime, maxTime);
+    if (state.charts.bias) updateChart(state.charts.bias, h, idx, ['bias_current'], minTime, maxTime);
 }
 
-function updateChart(chart, h, idx, keys) {
+function updateChart(chart, h, idx, keys, minTime, maxTime) {
     keys.forEach((k, i) => {
         chart.data.datasets[i].data = idx.map(j => ({ x: new Date(h.timestamps[j]), y: h[k][j] })).filter(d => d.y !== null);
     });
+    // Set zoom/pan limits to data range
+    if (chart.options.plugins.zoom.limits) {
+        chart.options.plugins.zoom.limits.x.min = minTime;
+        chart.options.plugins.zoom.limits.x.max = maxTime;
+    }
+    chart.options.scales.x.min = minTime;
+    chart.options.scales.x.max = maxTime;
     chart.update('none');
 }
 
