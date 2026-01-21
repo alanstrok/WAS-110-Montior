@@ -347,7 +347,8 @@ function updateChart(chart, h, idx, keys, minTime, maxTime) {
     keys.forEach((k, i) => {
         chart.data.datasets[i].data = idx.map(j => ({ x: new Date(h.timestamps[j]), y: h[k][j] })).filter(d => d.y !== null);
     });
-    // Set zoom/pan limits to data range
+    // Reset zoom plugin state and set new limits
+    chart.resetZoom();
     if (chart.options.plugins.zoom.limits) {
         chart.options.plugins.zoom.limits.x.min = minTime;
         chart.options.plugins.zoom.limits.x.max = maxTime;
