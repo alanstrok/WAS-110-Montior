@@ -74,29 +74,23 @@ function setupEvents() {
             e.target.classList.add('active');
             state.timeRange = parseInt(e.target.dataset.hours);
             updateCharts();
-            // Reset zoom when changing time range
-            Object.values(state.charts).forEach(c => c.resetZoom());
         });
     });
 }
 
 // Reset chart zoom to selected time range
 function resetChartZoom() {
-    const h = state.data?.history;
-    if (!h || !h.timestamps.length) {
-        Object.values(state.charts).forEach(c => c.resetZoom());
-        return;
-    }
-
-    const cutoff = Date.now() - state.timeRange * 3600000;
-    const minTime = Math.max(cutoff, new Date(h.timestamps[0]).getTime());
-    const maxTime = new Date(h.timestamps[h.timestamps.length - 1]).getTime();
+    const now = Date.now();
+    const cutoff = now - state.timeRange * 3600000;
 
     Object.values(state.charts).forEach(c => {
-        c.options.scales.x.min = minTime;
-        c.options.scales.x.max = maxTime;
+        c.options.scales.x.min = cutoff;
+        c.options.scales.x.max = now;
+        if (c.options.plugins.zoom.limits) {
+            c.options.plugins.zoom.limits.x.min = cutoff;
+            c.options.plugins.zoom.limits.x.max = now;
+        }
         c.update('none');
-        c.resetZoom();
     });
 }
 
@@ -329,15 +323,16 @@ function updateCharts() {
     const h = state.data?.history;
     if (!h || !h.timestamps.length) return;
 
-    const cutoff = Date.now() - state.timeRange * 3600000;
+    const now = Date.now();
+    const cutoff = now - state.timeRange * 3600000;
     const idx = [];
     h.timestamps.forEach((ts, i) => {
         if (new Date(ts).getTime() >= cutoff) idx.push(i);
     });
 
-    // Calculate time bounds for zoom limits
-    const minTime = idx.length > 0 ? new Date(h.timestamps[idx[0]]).getTime() : cutoff;
-    const maxTime = idx.length > 0 ? new Date(h.timestamps[idx[idx.length - 1]]).getTime() : Date.now();
+    // Time bounds = selected time range (not data range)
+    const minTime = cutoff;
+    const maxTime = now;
 
     if (state.charts.temp) updateChart(state.charts.temp, h, idx, ['temp1', 'temp2', 'optical_temp'], minTime, maxTime);
     if (state.charts.power) updateChart(state.charts.power, h, idx, ['tx_power', 'rx_power'], minTime, maxTime);
