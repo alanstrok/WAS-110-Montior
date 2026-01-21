@@ -78,12 +78,15 @@ function setupEvents() {
     });
 }
 
-// Reset chart zoom to selected time range
+// Reset chart zoom to selected time range from current time
 function resetChartZoom() {
     const now = Date.now();
     const cutoff = now - state.timeRange * 3600000;
 
     Object.values(state.charts).forEach(c => {
+        // Reset zoom plugin internal state first
+        c.resetZoom();
+        // Then set new scale limits based on current time
         c.options.scales.x.min = cutoff;
         c.options.scales.x.max = now;
         if (c.options.plugins.zoom.limits) {
