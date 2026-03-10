@@ -84,8 +84,8 @@ function resetChartZoom() {
     const cutoff = now - state.timeRange * 3600000;
 
     Object.values(state.charts).forEach(c => {
-        // Reset zoom plugin internal state first
-        c.resetZoom();
+        // Reset zoom plugin internal state without animation
+        c.resetZoom('none');
         // Then set new scale limits based on current time
         c.options.scales.x.min = cutoff;
         c.options.scales.x.max = now;
@@ -347,8 +347,8 @@ function updateChart(chart, h, idx, keys, minTime, maxTime) {
     keys.forEach((k, i) => {
         chart.data.datasets[i].data = idx.map(j => ({ x: new Date(h.timestamps[j]), y: h[k][j] })).filter(d => d.y !== null);
     });
-    // Reset zoom plugin state and set new limits
-    chart.resetZoom();
+    // Reset zoom plugin state without animation, then set new limits
+    chart.resetZoom('none');
     if (chart.options.plugins.zoom.limits) {
         chart.options.plugins.zoom.limits.x.min = minTime;
         chart.options.plugins.zoom.limits.x.max = maxTime;
