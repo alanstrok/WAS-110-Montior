@@ -402,65 +402,6 @@ def test_notifications():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
-@app.route('/api/notifications/debug')
-def debug_notifications():
-    """Get notification configuration for debugging (masks sensitive tokens)"""
-    notif_config = Config.get_notifications()
-
-    debug_config = {
-        'enabled': notif_config['enabled'],
-        'gotify': {
-            'enabled': notif_config['gotify']['enabled'],
-            'url': notif_config['gotify']['url'],
-            'token_set': bool(notif_config['gotify']['token']),
-            'token_preview': notif_config['gotify']['token'][:8] + '...' if notif_config['gotify']['token'] and len(notif_config['gotify']['token']) > 8 else '(not set)',
-            'priority': notif_config['gotify']['priority'],
-        },
-        'ntfy': {
-            'enabled': notif_config['ntfy']['enabled'],
-            'url': notif_config['ntfy']['url'],
-            'topic': notif_config['ntfy']['topic'],
-        },
-        'webhook': {
-            'enabled': notif_config['webhook']['enabled'],
-            'url_set': bool(notif_config['webhook']['url']),
-        },
-        'email': {
-            'enabled': notif_config['email']['enabled'],
-            'smtp_host': notif_config['email']['smtp_host'],
-            'smtp_port': notif_config['email']['smtp_port'],
-        }
-    }
-    return jsonify(debug_config)
-
-
-@app.route('/api/debug')
-def get_debug():
-    """Get debug information including raw API response"""
-    filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
-    history_file_exists = os.path.exists(filepath)
-    history_file_size = os.path.getsize(filepath) if history_file_exists else 0
-
-    return jsonify({
-        'current_data': current_data,
-        'connection_stats': connection_stats,
-        'raw_outputs': debug_outputs,
-        'settings': Config.get_all_settings(),
-        'retention_config': {
-            'history_hours': Config.HISTORY_HOURS,
-            'fetch_interval_seconds': Config.FETCH_INTERVAL_SECONDS,
-            'max_history_points': MAX_HISTORY_POINTS,
-        },
-        'history_status': {
-            'data_dir': Config.DATA_DIR,
-            'file_path': filepath,
-            'file_exists': history_file_exists,
-            'file_size_bytes': history_file_size,
-            'points_in_memory': len(history['timestamps']),
-            'oldest_point': history['timestamps'][0] if history['timestamps'] else None,
-            'newest_point': history['timestamps'][-1] if history['timestamps'] else None,
-        }
-    })
 
 
 @app.route('/api/export')
