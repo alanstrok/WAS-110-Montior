@@ -43,7 +43,7 @@
 
   <!-- Data Collection -->
   <Config Name="Fetch Interval" Target="FETCH_INTERVAL_SECONDS" Default="60" Mode="" Description="Data collection interval in seconds" Type="Variable" Display="advanced" Required="false" Mask="false">60</Config>
-  <Config Name="History Hours" Target="HISTORY_HOURS" Default="72" Mode="" Description="Hours of history to retain" Type="Variable" Display="advanced" Required="false" Mask="false">72</Config>
+  <Config Name="History Hours" Target="HISTORY_HOURS" Default="168" Mode="" Description="Hours of history to retain (168 = 7 days)" Type="Variable" Display="advanced" Required="false" Mask="false">168</Config>
 
   <!-- Temperature Thresholds -->
   <Config Name="CPU Temp Warning" Target="TEMP_WARNING" Default="65" Mode="" Description="CPU temperature warning threshold (°C)" Type="Variable" Display="advanced" Required="false" Mask="false">65</Config>

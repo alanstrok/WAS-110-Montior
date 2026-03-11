@@ -34,7 +34,7 @@ services:
 
       # Collecte de données
       - FETCH_INTERVAL_SECONDS=60
-      - HISTORY_HOURS=72
+      - HISTORY_HOURS=168
 
       # Seuils d'alerte
       - TEMP_WARNING=65

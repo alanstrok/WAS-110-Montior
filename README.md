@@ -56,7 +56,7 @@ services:
       - SFP_HOST=192.168.11.1
       # Optional settings
       - FETCH_INTERVAL_SECONDS=60
-      - HISTORY_HOURS=72
+      - HISTORY_HOURS=168
       - TZ=America/New_York
 ```
 
@@ -102,7 +102,7 @@ python app.py
 |----------|---------|-------------|
 | `SFP_HOST` | `192.168.11.1` | WAS-110 IP address |
 | `FETCH_INTERVAL_SECONDS` | `60` | Data collection interval |
-| `HISTORY_HOURS` | `72` | Hours of history to keep |
+| `HISTORY_HOURS` | `168` | Hours of history to keep (7 days) |
 | `TZ` | `UTC` | Timezone |
 | `TEMP_WARNING` | `65` | CPU temp warning threshold (°C) |
 | `TEMP_CRITICAL` | `75` | CPU temp critical threshold (°C) |

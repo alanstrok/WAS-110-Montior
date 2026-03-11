@@ -17,7 +17,7 @@ services:
 
       # Data Collection
       - FETCH_INTERVAL_SECONDS=${FETCH_INTERVAL_SECONDS:-60}
-      - HISTORY_HOURS=${HISTORY_HOURS:-72}
+      - HISTORY_HOURS=${HISTORY_HOURS:-168}
 
       # Alert Thresholds
       - TEMP_WARNING=${TEMP_WARNING:-65}

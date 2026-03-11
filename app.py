@@ -414,13 +414,19 @@ def get_debug():
         'connection_stats': connection_stats,
         'raw_outputs': debug_outputs,
         'settings': Config.get_all_settings(),
+        'retention_config': {
+            'history_hours': Config.HISTORY_HOURS,
+            'fetch_interval_seconds': Config.FETCH_INTERVAL_SECONDS,
+            'max_history_points': MAX_HISTORY_POINTS,
+        },
         'history_status': {
             'data_dir': Config.DATA_DIR,
             'file_path': filepath,
             'file_exists': history_file_exists,
             'file_size_bytes': history_file_size,
             'points_in_memory': len(history['timestamps']),
-            'max_points': MAX_HISTORY_POINTS
+            'oldest_point': history['timestamps'][0] if history['timestamps'] else None,
+            'newest_point': history['timestamps'][-1] if history['timestamps'] else None,
         }
     })
 
