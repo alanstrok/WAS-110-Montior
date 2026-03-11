@@ -185,16 +185,34 @@ def fetch_data():
 
 
 def save_history():
-    """Save history to JSON file"""
+    """Save history to JSON file with atomic write"""
     try:
         os.makedirs(Config.DATA_DIR, exist_ok=True)
         filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
+        temp_filepath = filepath + '.tmp'
+        backup_filepath = filepath + '.bak'
 
         data = {key: list(values) for key, values in history.items()}
         points = len(data.get('timestamps', []))
 
-        with open(filepath, 'w') as f:
+        # Don't overwrite existing data with empty data
+        if points == 0 and os.path.exists(filepath):
+            logger.warning("Skipping save: no data in memory but file exists")
+            return
+
+        # Write to temp file first
+        with open(temp_filepath, 'w') as f:
             json.dump(data, f)
+
+        # Create backup of existing file
+        if os.path.exists(filepath):
+            try:
+                os.replace(filepath, backup_filepath)
+            except Exception:
+                pass
+
+        # Atomic rename
+        os.replace(temp_filepath, filepath)
 
         logger.debug(f"Saved {points} history points to {filepath}")
 
@@ -203,30 +221,44 @@ def save_history():
 
 
 def load_history():
-    """Load history from JSON file"""
-    try:
-        filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
-        logger.info(f"Looking for history file at: {filepath}")
+    """Load history from JSON file with backup fallback"""
+    filepath = os.path.join(Config.DATA_DIR, 'sfp_history.json')
+    backup_filepath = filepath + '.bak'
 
-        if not os.path.exists(filepath):
-            logger.info(f"No history file found at {filepath}, starting fresh")
-            return
+    # Try main file first, then backup
+    for path in [filepath, backup_filepath]:
+        try:
+            logger.info(f"Looking for history file at: {path}")
 
-        with open(filepath, 'r') as f:
-            data = json.load(f)
+            if not os.path.exists(path):
+                continue
 
-        file_points = len(data.get('timestamps', []))
-        logger.info(f"Found {file_points} points in history file")
+            with open(path, 'r') as f:
+                data = json.load(f)
 
-        for key in history.keys():
-            if key in data:
-                for value in data[key]:
-                    history[key].append(value)
+            file_points = len(data.get('timestamps', []))
+            if file_points == 0:
+                logger.warning(f"File {path} is empty, trying backup...")
+                continue
 
-        logger.info(f"Loaded {len(history['timestamps'])} history points into memory")
+            logger.info(f"Found {file_points} points in history file")
 
-    except Exception as e:
-        logger.error(f"Failed to load history: {e}")
+            for key in history.keys():
+                if key in data:
+                    for value in data[key]:
+                        history[key].append(value)
+
+            logger.info(f"Loaded {len(history['timestamps'])} history points into memory")
+            return  # Success
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in {path}: {e}, trying backup...")
+            continue
+        except Exception as e:
+            logger.error(f"Failed to load history from {path}: {e}")
+            continue
+
+    logger.info("No valid history file found, starting fresh")
 
 
 # Flask Routes
